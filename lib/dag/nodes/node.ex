@@ -13,6 +13,17 @@ defmodule Creek.Node do
     }
   end
 
+  def from_list(xs) do
+    %{
+      :type => :source,
+      :name => "from_list",
+      :argument => xs,
+      :in => 0,
+      :out => 1,
+      :subscribe => &Creek.Node.Source.FromList.subscribe/2
+    }
+  end
+
   # -----------------------------------------------------------------------------
   # Operator
 
@@ -23,7 +34,20 @@ defmodule Creek.Node do
       :argument => f,
       :in => 1,
       :out => 1,
-      :next => &Creek.Node.Operator.Map.next/3
+      :next => &Creek.Node.Operator.Map.next/3,
+      :complete => &Creek.Node.Operator.Map.complete/3
+    }
+  end
+
+  def flatten() do
+    %{
+      :type => :operator,
+      :name => "flatten",
+      :argument => nil,
+      :in => 1,
+      :out => 1,
+      :next => &Creek.Node.Operator.Flatten.next/3,
+      :complete => &Creek.Node.Operator.Flatten.complete/3
     }
   end
 

@@ -5,7 +5,7 @@ defmodule Creek.Stream.Process do
   # Source
 
   def source(node, ds) do
-    Logger.debug("#{inspect(self())} Source running: #{inspect(node)}")
+    # Logger.debug("#{inspect(self())} Source running: #{inspect(node)}")
     srloop(node, ds)
   end
 
@@ -31,7 +31,7 @@ defmodule Creek.Stream.Process do
   # Process
 
   def process(node, ds, us) do
-    Logger.debug("#{inspect(self())} Process running: #{inspect(node)}")
+    # Logger.debug("#{inspect(self())} Process running: #{inspect(node)}")
     ploop(node, ds, us)
   end
 
@@ -51,8 +51,9 @@ defmodule Creek.Stream.Process do
         node.next.(node.argument, value, ds)
         ploop(node, ds, us)
 
-      {:complete, _upstream} ->
-        for d <- ds, do: send(d, {:complete, self()})
+      {:complete, upstream} ->
+        node.complete.(upstream, us, ds)
+        us = MapSet.delete(us, upstream)
         ploop(node, ds, us)
 
       :dispose ->
@@ -70,25 +71,25 @@ defmodule Creek.Stream.Process do
   # Sinks
 
   def sink(node, ivar, source) do
-    Logger.debug("#{inspect(self())} Sink running #{inspect(node)} #{inspect(ivar)} #{inspect(source)}")
-    sloop(node, ivar, source, node.state, [])
+    # Logger.debug("#{inspect(self())} Sink running #{inspect(node)} #{inspect(ivar)} #{inspect(source)}")
+    sloop(node, ivar, source, node.state, [], [])
   end
 
-  defp sloop(node, ivar, source, state, downstream) do
+  defp sloop(node, ivar, source, state, downstream, upstream) do
     receive do
       :init ->
         send(source, {:subscribe, self()})
-        sloop(node, ivar, source, state, downstream)
+        sloop(node, ivar, source, state, downstream, upstream)
 
       {:subscribe, _who} ->
-        sloop(node, ivar, source, state, downstream)
+        sloop(node, ivar, source, state, downstream, upstream)
 
       {:next, value} ->
         state = node.next.(node, value, state, downstream)
 
         case state do
           {:continue, state} ->
-            sloop(node, ivar, source, state, downstream)
+            sloop(node, ivar, source, state, downstream, upstream)
 
           {:done, state} ->
             Ivar.put(ivar, state)
@@ -109,19 +110,21 @@ defmodule Creek.Stream.Process do
 
           {:continue, state} ->
             for d <- downstream, do: send(d, {:complete, self()})
-            sloop(node, ivar, source, state, downstream)
+            sloop(node, ivar, source, state, downstream, upstream)
         end
 
       {:add_downstream, d} ->
-        IO.puts("adding downstream")
-        sloop(node, ivar, source, state, downstream ++ [d])
+        sloop(node, ivar, source, state, downstream ++ [d], upstream)
+
+      {:add_upstream, u} ->
+        sloop(node, ivar, source, state, downstream, upstream ++ [u])
 
       :dispose ->
-        sloop(node, ivar, source, state, downstream)
+        sloop(node, ivar, source, state, downstream, upstream)
 
       m ->
         IO.puts("Sink did not understand: #{inspect(m)}")
-        sloop(node, ivar, source, state, [])
+        sloop(node, ivar, source, state, [], [])
     end
   end
 end

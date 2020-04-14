@@ -47,22 +47,31 @@ defmodule Creek.Wiring do
   # a node, false otherwise.
   defp is_node?(node) do
     case node do
-      %{} -> true
-      _ -> false
+      %MutableGraph{} -> false
+      _ -> true
     end
   end
 
   # Merges two graphs together. Assume that each graph has one sink and one source.
-  defp merge_graphs(left, right) do
+  def merge_graphs(left, right) do
     # Determine the sink and source node for each graph, where they will be connected.
     l_sink = MutableGraph.sink_vertices(left) |> hd()
     r_source = MutableGraph.source_vertices(right) |> hd()
 
-    # Merge the graphs together.
+    # Merge the graphs together by first adding all the vertices
+    # from the right dag to the left dag.
+    # Then add all the edges from the right dag to the left dag.
+    dag =
+      right
+      |> MutableGraph.vertices()
+      |> Enum.reduce(left, fn v, left ->
+        MutableGraph.add_vertex(left, v)
+      end)
+
     right
     |> MutableGraph.edges()
-    |> Enum.reduce(left, fn {from, to}, left ->
-      MutableGraph.add_edge(left, from, to)
+    |> Enum.reduce(dag, fn {from, to}, dag ->
+      MutableGraph.add_edge(dag, from, to)
     end)
     |> MutableGraph.add_edge(l_sink, r_source)
   end

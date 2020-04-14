@@ -1,7 +1,7 @@
 defmodule Creek.Node.Source.Single do
   def subscribe(value, downstream) do
     # for testing purposes
-    Process.sleep(500)
+    Process.sleep(value * 1000)
 
     for d <- downstream do
       send(d, {:next, value})

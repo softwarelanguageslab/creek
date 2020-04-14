@@ -41,6 +41,31 @@ defmodule CreekTest do
     assert_torn_down(stream)
   end
 
+  test "from_list" do
+    dag = from_list([1, 2, 3, 4, 5, 6])
+
+    stream = run(dag, all())
+
+    result = get(stream)
+
+    assert result == [1, 2, 3, 4, 5, 6]
+
+    assert_torn_down(stream)
+  end
+
+  # -----------------------------------------------------------------------------
+  # Mergeg dag
+  test "map two upstreams" do
+    dag = [single(1), single(5)] ~>> map(fn x -> x + 1 end)
+
+    stream = run(dag, all())
+
+    result = get(stream)
+    IO.puts(result)
+
+    assert_torn_down(stream)
+  end
+
   # -----------------------------------------------------------------------------
   # Operators
   test "map" do
@@ -51,6 +76,56 @@ defmodule CreekTest do
     result = get(stream)
 
     assert result == [2]
+
+    assert_torn_down(stream)
+  end
+
+  test "double map" do
+    dag =
+      single(1)
+      ~> map(fn x -> x + 1 end)
+      ~> map(fn x -> x + 1 end)
+
+    stream = run(dag, all())
+
+    result = get(stream)
+
+    assert result == [3]
+
+    assert_torn_down(stream)
+  end
+
+  test "flatten" do
+    dag =
+      single(0)
+      ~> map(fn _ -> single(0) end)
+      ~> flatten()
+      ~> map(fn x -> x end)
+
+    stream = run(dag, all())
+
+    IO.inspect(stream, pretty: true)
+    result = get(stream)
+
+    assert result == [0]
+
+    assert_torn_down(stream)
+  end
+
+  @tag :flat
+  test "flatten from multiple" do
+    dag =
+      from_list([1, 2, 3, 4])
+      ~> map(fn x -> single(x) end)
+      ~> flatten()
+      ~> map(fn x -> x end)
+
+    stream = run(dag, all())
+
+    IO.inspect(stream, pretty: true)
+    result = get(stream)
+
+    assert result == [1, 2, 3, 4]
 
     assert_torn_down(stream)
   end
@@ -82,7 +157,6 @@ defmodule CreekTest do
     assert_torn_down(stream)
   end
 
-  @tag :failing
   test "fanout 1 branch" do
     dag = single(1)
     stream = run(dag, fanout())

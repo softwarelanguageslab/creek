@@ -1,6 +1,12 @@
-defmodule Creek.Node.Operator.Map do
-  def next(proc, value, downstream) do
-    for d <- downstream, do: send(d, {:next, proc.(value)})
+defmodule Creek.Node.Operator.Flatten do
+  import Creek.Stream
+
+  def next(_proc, value, downstream) do
+    [downstream] = MapSet.to_list(downstream)
+
+    # The value is a DAG, so we realize it into our downstream.
+    value
+    |> run(downstream)
   end
 
   def complete(from, upstream, downstream) do
