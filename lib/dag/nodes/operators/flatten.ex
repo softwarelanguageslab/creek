@@ -11,11 +11,14 @@ defmodule Creek.Node.Operator.Flatten do
 
   def complete(from, upstream, downstream) do
     # Dispose the upstream, as it's done.
-    send(from, :dispose)
+    send(self(), {:send, from, :dispose})
 
+    # send(from, :dispose)
+
+    IO.puts("Flatten its upstream: ")
     # Notify our downstream.
     if MapSet.to_list(upstream) == [from] do
-      for d <- downstream, do: send(d, {:complete, self()})
+      for d <- downstream, do: send(self(), {:send, d, {:complete, self()}})
     end
   end
 end

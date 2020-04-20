@@ -6,7 +6,7 @@ defmodule CreekTest do
   # doctest Creek
 
   def assert_torn_down(stream) do
-    Process.sleep(300)
+    Process.sleep(100)
 
     stream.graph
     |> MutableGraph.map_vertices(fn v ->
@@ -17,7 +17,7 @@ defmodule CreekTest do
   end
 
   def assert_up(stream) do
-    Process.sleep(300)
+    Process.sleep(100)
 
     stream.graph
     |> MutableGraph.map_vertices(fn v ->
@@ -30,13 +30,13 @@ defmodule CreekTest do
   # -----------------------------------------------------------------------------
   # Source
   test "single" do
-    dag = single(1)
+    dag = single(0)
 
     stream = run(dag, all())
 
     result = get(stream)
 
-    assert result == [1]
+    assert result == [0]
 
     assert_torn_down(stream)
   end
@@ -56,7 +56,7 @@ defmodule CreekTest do
   # -----------------------------------------------------------------------------
   # Mergeg dag
   test "map two upstreams" do
-    dag = [single(1), single(5)] ~>> map(fn x -> x + 1 end)
+    dag = [single(0), single(0)] ~>> map(fn x -> x + 1 end)
 
     stream = run(dag, all())
 
@@ -69,20 +69,20 @@ defmodule CreekTest do
   # -----------------------------------------------------------------------------
   # Operators
   test "map" do
-    dag = single(1) ~> map(fn x -> x + 1 end)
+    dag = single(0) ~> map(fn x -> x + 1 end)
 
     stream = run(dag, all())
 
     result = get(stream)
 
-    assert result == [2]
+    assert result == [1]
 
     assert_torn_down(stream)
   end
 
   test "double map" do
     dag =
-      single(1)
+      single(0)
       ~> map(fn x -> x + 1 end)
       ~> map(fn x -> x + 1 end)
 
@@ -90,7 +90,7 @@ defmodule CreekTest do
 
     result = get(stream)
 
-    assert result == [3]
+    assert result == [2]
 
     assert_torn_down(stream)
   end
@@ -112,7 +112,6 @@ defmodule CreekTest do
     assert_torn_down(stream)
   end
 
-  @tag :flat
   test "flatten from multiple" do
     dag =
       from_list([1, 2, 3, 4])
@@ -134,65 +133,67 @@ defmodule CreekTest do
   # Sinks
 
   test "all" do
-    dag = single(1)
+    dag = single(0)
 
     stream = run(dag, all())
 
     result = get(stream)
 
-    assert result == [1]
+    assert result == [0]
 
     assert_torn_down(stream)
   end
 
   test "head" do
-    dag = single(1)
+    dag = single(0)
 
     stream = run(dag, head())
 
     result = get(stream)
 
-    assert result == 1
+    assert result == 0
 
     assert_torn_down(stream)
   end
 
   test "fanout 1 branch" do
-    dag = single(1)
+    dag = single(0)
     stream = run(dag, fanout())
 
     left = extend(stream, map(fn x -> x end), head())
-    assert 1 == get(left)
+    assert 0 == get(left)
 
     assert_torn_down(left)
   end
 
   test "fanout 2 branches" do
-    dag = single(1)
+    dag = single(0)
     stream = run(dag, fanout())
 
     left = extend(stream, map(fn x -> x end), head())
     right = extend(stream, map(fn x -> x end), head())
 
-    assert 1 = get(left)
-    assert 1 == get(right)
+    assert 0 = get(left)
+    assert 0 == get(right)
 
     assert_up(stream)
     assert_torn_down(left)
     assert_torn_down(right)
   end
 
+  @tag :fail
   test "fanout 3 branches" do
-    dag = single(1)
+    # For this test we assume it's fair that the single has a small delay to ensure the complet message is propagated on time.
+    dag = single(0)
     stream = run(dag, fanout())
 
     left = extend(stream, map(fn x -> x end), head())
     middle = extend(stream, map(fn x -> x end), all())
     right = extend(stream, map(fn x -> x end), head())
 
-    assert 1 = get(left)
-    assert [1] = get(middle)
-    assert 1 == get(right)
+    assert 0 = get(left)
+    assert [0] = get(middle)
+    assert 0 == get(right)
 
     assert_up(stream)
     assert_torn_down(left)

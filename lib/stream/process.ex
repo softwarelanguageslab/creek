@@ -22,6 +22,10 @@ defmodule Creek.Stream.Process do
         Logger.warn("#{inspect(self())} Source stopping: #{inspect(node)}")
         :stop
 
+      {:send, to, payload} ->
+        send(to, payload)
+        srloop(node, ds)
+
       m ->
         IO.puts("Source did not understand: #{inspect(m)}")
     end
@@ -60,6 +64,10 @@ defmodule Creek.Stream.Process do
         for u <- us, do: send(u, :dispose)
         Logger.warn("#{inspect(self())} Process stopping: #{inspect(node)}")
         :stop
+
+      {:send, to, payload} ->
+        send(to, payload)
+        ploop(node, ds, us)
 
       m ->
         IO.puts("Process did not understand: #{inspect(m)}")
@@ -120,6 +128,11 @@ defmodule Creek.Stream.Process do
         sloop(node, ivar, source, state, downstream, upstream ++ [u])
 
       :dispose ->
+        sloop(node, ivar, source, state, downstream, upstream)
+        :stop
+
+      {:send, to, payload} ->
+        send(to, payload)
         sloop(node, ivar, source, state, downstream, upstream)
 
       m ->
