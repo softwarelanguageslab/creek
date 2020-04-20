@@ -112,7 +112,6 @@ defmodule CreekTest do
     assert_torn_down(stream)
   end
 
-  @tag :flat
   test "flatten from multiple" do
     dag =
       from_list([1, 2, 3, 4])
