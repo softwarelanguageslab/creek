@@ -5,10 +5,12 @@ defmodule Creek.Node.Source.FromList do
 
     for d <- downstream do
       for v <- values do
-        send(d, {:next, v})
+        # send(d, {:next, v})
+        send(self(), {:send, d, {:next, v}})
       end
 
-      send(d, {:complete, self()})
+      # send(d, {:complete, self()})
+      send(self(), {:send, d, {:complete, self()}})
     end
   end
 end
