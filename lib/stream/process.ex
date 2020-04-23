@@ -10,6 +10,9 @@ defmodule Creek.Stream.Process do
   end
 
   defp srloop(node, ds) do
+    # IO.puts """
+    # Source: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
+    # """
     receive do
       {:add_downstream, d} ->
         srloop(node, MapSet.put(ds, d))
@@ -40,6 +43,9 @@ defmodule Creek.Stream.Process do
   end
 
   defp ploop(node, ds, us) do
+    # IO.puts """
+    # Operator: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
+    # """
     receive do
       {:add_downstream, d} ->
         ploop(node, MapSet.put(ds, d), us)
@@ -52,6 +58,7 @@ defmodule Creek.Stream.Process do
         ploop(node, ds, us)
 
       {:next, value} ->
+        IO.puts "operator #{inspect self()} next #{inspect value}"
         node.next.(node.argument, value, ds)
         ploop(node, ds, us)
 
@@ -84,6 +91,9 @@ defmodule Creek.Stream.Process do
   end
 
   defp sloop(node, ivar, source, state, downstream, upstream) do
+    # IO.puts """
+    # Sink: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
+    # """
     receive do
       :init ->
         send(source, {:subscribe, self()})
@@ -93,6 +103,7 @@ defmodule Creek.Stream.Process do
         sloop(node, ivar, source, state, downstream, upstream)
 
       {:next, value} ->
+        IO.puts "sink     #{inspect self()} next #{inspect value}"
         state = node.next.(node, value, state, downstream)
 
         case state do
@@ -107,6 +118,7 @@ defmodule Creek.Stream.Process do
         end
 
       {:complete, _from} ->
+        IO.puts "sink     #{inspect self()} complete"
         result = node.complete.(state, downstream)
 
         case result do
@@ -128,6 +140,7 @@ defmodule Creek.Stream.Process do
         sloop(node, ivar, source, state, downstream, upstream ++ [u])
 
       :dispose ->
+        IO.puts "sink     #{inspect self()} dispose"
         sloop(node, ivar, source, state, downstream, upstream)
         :stop
 

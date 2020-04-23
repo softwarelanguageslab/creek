@@ -42,7 +42,7 @@ defmodule Creek.Stream do
     send(stream_sink, {:add_downstream, source})
 
     # Return the ivar.
-    %{ivar: ivar, source: source, sink: output, graph: spawned_dag}
+    %{ivar: ivar, source: source, sink: spawned_sink, graph: spawned_dag}
   end
 
   @doc """
