@@ -9,7 +9,8 @@ defmodule Creek.Node do
       :argument => value,
       :in => 0,
       :out => 1,
-      :subscribe => &Creek.Node.Source.Single.subscribe/2
+      :subscribe => &Creek.Node.Source.Single.subscribe/2,
+      :meta => nil
     }
   end
 
@@ -20,7 +21,8 @@ defmodule Creek.Node do
       :argument => xs,
       :in => 0,
       :out => 1,
-      :subscribe => &Creek.Node.Source.FromList.subscribe/2
+      :subscribe => &Creek.Node.Source.FromList.subscribe/2,
+      :meta => nil
     }
   end
 
@@ -35,7 +37,8 @@ defmodule Creek.Node do
       :in => 1,
       :out => 1,
       :next => &Creek.Node.Operator.Map.next/3,
-      :complete => &Creek.Node.Operator.Map.complete/3
+      :complete => &Creek.Node.Operator.Map.complete/3,
+      :meta => nil
     }
   end
 
@@ -47,7 +50,8 @@ defmodule Creek.Node do
       :in => 1,
       :out => 1,
       :next => &Creek.Node.Operator.Flatten.next/3,
-      :complete => &Creek.Node.Operator.Flatten.complete/3
+      :complete => &Creek.Node.Operator.Flatten.complete/3,
+      :meta => nil
     }
   end
 
@@ -63,7 +67,8 @@ defmodule Creek.Node do
       :in => 1,
       :out => -1,
       :next => &Creek.Node.Sink.FanOut.next/4,
-      :complete => &Creek.Node.Sink.FanOut.complete/2
+      :complete => &Creek.Node.Sink.FanOut.complete/2,
+      :meta => nil
     }
   end
 
@@ -76,7 +81,8 @@ defmodule Creek.Node do
       :in => 1,
       :out => 0,
       :next => &Creek.Node.Sink.Head.next/4,
-      :complete => &Creek.Node.Sink.Head.complete/2
+      :complete => &Creek.Node.Sink.Head.complete/2,
+      :meta => nil
     }
   end
 
@@ -89,7 +95,8 @@ defmodule Creek.Node do
       :in => 1,
       :out => 0,
       :next => &Creek.Node.Sink.All.next/4,
-      :complete => &Creek.Node.Sink.All.complete/2
+      :complete => &Creek.Node.Sink.All.complete/2,
+      :meta => nil
     }
   end
 end
