@@ -15,7 +15,6 @@ defmodule Creek.Node.Operator.Flatten do
 
     # send(from, :dispose)
 
-    IO.puts("Flatten its upstream: ")
     # Notify our downstream.
     if MapSet.to_list(upstream) == [from] do
       for d <- downstream, do: send(self(), {:send, d, {:complete, self()}})

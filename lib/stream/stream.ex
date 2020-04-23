@@ -119,6 +119,7 @@ defmodule Creek.Stream do
 
     # Add the sink as a downstream node to the sink of the graph.
     send(output, {:add_downstream, spawned_sink})
+    send(spawned_sink, {:add_upstream, output})
 
     # Start the subscription on the sink.
     send(spawned_sink, :init)

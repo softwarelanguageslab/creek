@@ -6,18 +6,24 @@ defmodule CreekTest do
   # doctest Creek
 
   def assert_torn_down(stream) do
-    Process.sleep(100)
+    Process.sleep(500)
 
     stream.graph
     |> MutableGraph.map_vertices(fn v ->
+      if Process.alive?(v) do
+        IO.puts "!!!!! #{inspect v} is still alive"
+      end
       assert false == Process.alive?(v)
     end)
 
+    if Process.alive?(stream.sink) do
+      IO.puts "!!!! #{inspect stream.sink} is still alive"
+    end
     assert false == Process.alive?(stream.sink)
   end
 
   def assert_up(stream) do
-    Process.sleep(100)
+    Process.sleep(500)
 
     stream.graph
     |> MutableGraph.map_vertices(fn v ->
@@ -29,6 +35,7 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Source
+  @tag :stop
   test "single" do
     dag = single(0)
 
@@ -104,7 +111,6 @@ defmodule CreekTest do
 
     stream = run(dag, all())
 
-    IO.inspect(stream, pretty: true)
     result = get(stream)
 
     assert result == [0]
@@ -121,10 +127,10 @@ defmodule CreekTest do
 
     stream = run(dag, all())
 
-    IO.inspect(stream, pretty: true)
     result = get(stream)
 
-    assert result == [1, 2, 3, 4]
+    # Flatten is concurrent so it does not imposen an order!
+    assert Enum.sort(result) == [1, 2, 3, 4]
 
     assert_torn_down(stream)
   end
@@ -166,6 +172,7 @@ defmodule CreekTest do
     assert_torn_down(left)
   end
 
+  @tag :fail
   test "fanout 2 branches" do
     dag = single(0)
     stream = run(dag, fanout())
@@ -181,7 +188,6 @@ defmodule CreekTest do
     assert_torn_down(right)
   end
 
-  @tag :fail
   test "fanout 3 branches" do
     # For this test we assume it's fair that the single has a small delay to ensure the complet message is propagated on time.
     dag = single(0)

@@ -1,6 +1,19 @@
 defmodule Creek.Stream.Process do
   require Logger
 
+  @debug false
+  def debug_in(node, message) do
+    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name)} <- #{inspect(message)}")
+  end
+
+  def debug_out(node, message) do
+    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name)} -> #{inspect(message)}")
+  end
+
+  def debug_stop(node) do
+    if @debug, do: IO.puts(IO.ANSI.red() <> "#{inspect(self())} - #{inspect(node.name)} stopping" <> IO.ANSI.reset())
+  end
+
   # -----------------------------------------------------------------------------
   # Source
 
@@ -13,24 +26,38 @@ defmodule Creek.Stream.Process do
     # IO.puts """
     # Source: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
     # """
+    # Flush out buffer
     receive do
-      {:add_downstream, d} ->
-        srloop(node, MapSet.put(ds, d))
-
-      {:subscribe, _d} ->
-        node.subscribe.(node.argument, ds)
-        srloop(node, ds)
-
-      :dispose ->
-        Logger.warn("#{inspect(self())} Source stopping: #{inspect(node)}")
-        :stop
-
       {:send, to, payload} ->
+        debug_in(node, {:send, to, payload})
         send(to, payload)
+        debug_out(node, {to, payload})
         srloop(node, ds)
+    after
+      0 ->
+        receive do
+          {:add_downstream, d} ->
+            debug_in(node, {:add_downstream, d})
+            debug_in(node, {:add_downstream, d})
+            srloop(node, MapSet.put(ds, d))
 
-      m ->
-        IO.puts("Source did not understand: #{inspect(m)}")
+          {:subscribe, d} ->
+            debug_in(node, {:subscribe, d})
+            node.subscribe.(node.argument, ds)
+            srloop(node, ds)
+
+          :dispose ->
+            debug_in(node, :dispose)
+            send(self(), {:send, self(), :stop})
+            srloop(node, ds)
+
+          :stop ->
+            debug_stop(node)
+            :stop
+
+          m ->
+            IO.puts("Source did not understand: #{inspect(m)}")
+        end
     end
   end
 
@@ -46,39 +73,63 @@ defmodule Creek.Stream.Process do
     # IO.puts """
     # Operator: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
     # """
+    # Flush out buffer
     receive do
-      {:add_downstream, d} ->
-        ploop(node, MapSet.put(ds, d), us)
-
-      {:add_upstream, u} ->
-        ploop(node, ds, MapSet.put(us, u))
-
-      {:subscribe, _who} ->
-        for u <- us, do: send(u, {:subscribe, self()})
-        ploop(node, ds, us)
-
-      {:next, value} ->
-        IO.puts "operator #{inspect self()} next #{inspect value}"
-        node.next.(node.argument, value, ds)
-        ploop(node, ds, us)
-
-      {:complete, upstream} ->
-        node.complete.(upstream, us, ds)
-        us = MapSet.delete(us, upstream)
-        ploop(node, ds, us)
-
-      :dispose ->
-        for u <- us, do: send(u, :dispose)
-        Logger.warn("#{inspect(self())} Process stopping: #{inspect(node)}")
-        :stop
-
       {:send, to, payload} ->
+        debug_in(node, {:send, to, payload})
+        debug_out(node, {to, payload})
         send(to, payload)
         ploop(node, ds, us)
+    after
+      0 ->
+        receive do
+          {:add_downstream, d} ->
+            debug_in(node, {:add_downstream, d})
+            ploop(node, MapSet.put(ds, d), us)
 
-      m ->
-        IO.puts("Process did not understand: #{inspect(m)}")
-        ploop(node, ds, us)
+          {:add_upstream, u} ->
+            debug_in(node, {:add_upstream, u})
+            ploop(node, ds, MapSet.put(us, u))
+
+          {:subscribe, who} ->
+            debug_in(node, {:subscribe, who})
+            for u <- us, do: send(u, {:subscribe, self()})
+            ploop(node, ds, us)
+
+          {:next, value} ->
+            debug_in(node, {:next, value})
+            node.next.(node.argument, value, ds)
+            ploop(node, ds, us)
+
+          {:complete, upstream} ->
+            debug_in(node, {:complete, upstream})
+            node.complete.(upstream, us, ds)
+            us = MapSet.delete(us, upstream)
+            ploop(node, ds, us)
+
+          :dispose ->
+            debug_in(node, :dispose)
+
+            for u <- us do
+              send(self(), {:send, u, :dispose})
+            end
+
+            send(self(), {:send, self(), :stop})
+            ploop(node, ds, us)
+
+          :stop ->
+            debug_stop(node)
+            :stop
+
+          {:send, to, payload} ->
+            debug_in(node, {:send, to, payload})
+            send(to, payload)
+            ploop(node, ds, us)
+
+          m ->
+            IO.puts("Process did not understand: #{inspect(m)}")
+            ploop(node, ds, us)
+        end
     end
   end
 
@@ -95,62 +146,79 @@ defmodule Creek.Stream.Process do
     # Sink: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
     # """
     receive do
-      :init ->
-        send(source, {:subscribe, self()})
-        sloop(node, ivar, source, state, downstream, upstream)
-
-      {:subscribe, _who} ->
-        sloop(node, ivar, source, state, downstream, upstream)
-
-      {:next, value} ->
-        IO.puts "sink     #{inspect self()} next #{inspect value}"
-        state = node.next.(node, value, state, downstream)
-
-        case state do
-          {:continue, state} ->
-            sloop(node, ivar, source, state, downstream, upstream)
-
-          {:done, state} ->
-            Ivar.put(ivar, state)
-            send(source, :dispose)
-            Logger.warn("#{inspect(self())} Sink stopping: #{inspect(node)}")
-            :stop
-        end
-
-      {:complete, _from} ->
-        IO.puts "sink     #{inspect self()} complete"
-        result = node.complete.(state, downstream)
-
-        case result do
-          {:done, state} ->
-            Ivar.put(ivar, state)
-            send(source, :dispose)
-            Logger.warn("#{inspect(self())} Sink stopping: #{inspect(node)}")
-            :stop
-
-          {:continue, state} ->
-            for d <- downstream, do: send(d, {:complete, self()})
-            sloop(node, ivar, source, state, downstream, upstream)
-        end
-
-      {:add_downstream, d} ->
-        sloop(node, ivar, source, state, downstream ++ [d], upstream)
-
-      {:add_upstream, u} ->
-        sloop(node, ivar, source, state, downstream, upstream ++ [u])
-
-      :dispose ->
-        IO.puts "sink     #{inspect self()} dispose"
-        sloop(node, ivar, source, state, downstream, upstream)
-        :stop
-
       {:send, to, payload} ->
+        debug_in(node, {:send, to, payload})
+        debug_out(node, {to, payload})
         send(to, payload)
         sloop(node, ivar, source, state, downstream, upstream)
+    after
+      0 ->
+        receive do
+          :init ->
+            debug_in(node, :init)
+            send(self(), {:send, source, {:subscribe, self()}})
+            sloop(node, ivar, source, state, downstream, upstream)
 
-      m ->
-        IO.puts("Sink did not understand: #{inspect(m)}")
-        sloop(node, ivar, source, state, [], [])
+          {:subscribe, who} ->
+            debug_in(node, {:subscribe, who})
+            sloop(node, ivar, source, state, downstream, upstream)
+
+          {:next, value} ->
+            debug_in(node, {:next, value})
+            state = node.next.(node, value, state, downstream)
+
+            case state do
+              {:continue, state} ->
+                sloop(node, ivar, source, state, downstream, upstream)
+
+              {:done, state} ->
+                Ivar.put(ivar, state)
+                send(self(), {:send, source, :dispose})
+                send(self(), {:send, self(), :stop})
+                sloop(node, ivar, source, state, downstream, upstream)
+            end
+
+          :stop ->
+            debug_stop(node)
+            :stop
+
+          {:complete, from} ->
+            debug_in(node, {:complete, from})
+            result = node.complete.(state, downstream)
+
+            case result do
+              {:done, state} ->
+                Ivar.put(ivar, state)
+                debug_out(node, "putting value in ivar: #{inspect(state)}")
+                send(self(), {:send, source, :dispose})
+                send(self(), {:send, self(), :stop})
+                sloop(node, ivar, source, state, downstream, upstream)
+
+              {:continue, state} ->
+                for d <- downstream do
+                  send(self(), {:send, d, {:complete, self()}})
+                end
+
+                sloop(node, ivar, source, state, downstream, upstream)
+            end
+
+          {:add_downstream, d} ->
+            debug_in(node, {:add_downstream, d})
+            sloop(node, ivar, source, state, downstream ++ [d], upstream)
+
+          {:add_upstream, u} ->
+            debug_in(node, {:add_upstream, u})
+            sloop(node, ivar, source, state, downstream, upstream ++ [u])
+
+          :dispose ->
+            debug_in(node, :dispose)
+            # send(self(), {:send, self(), :stop})
+            sloop(node, ivar, source, state, downstream, upstream)
+
+          m ->
+            IO.puts("Sink did not understand: #{inspect(m)}")
+            sloop(node, ivar, source, state, [], [])
+        end
     end
   end
 end

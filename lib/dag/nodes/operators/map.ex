@@ -1,7 +1,9 @@
 defmodule Creek.Node.Operator.Map do
   def next(proc, value, downstream) do
     # send(d, {:next, proc.(value)})
-    for d <- downstream, do: send(d, {:next, proc.(value)}) # send(self(), {:send, d, {:next, proc.(value)}})
+    for d <- downstream do
+      send(self(), {:send, d, {:next, proc.(value)}})
+    end
   end
 
   def complete(from, upstream, downstream) do
