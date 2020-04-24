@@ -68,7 +68,6 @@ defmodule CreekTest do
     stream = run(dag, all())
 
     result = get(stream)
-    IO.puts(result)
 
     assert_torn_down(stream)
   end

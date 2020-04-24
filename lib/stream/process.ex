@@ -1,17 +1,42 @@
 defmodule Creek.Stream.Process do
   require Logger
+  import Creek.{Node, Stream, Wiring}
 
-  @debug false
+  @debug true
+  @send true
+  @meta true
   def debug_in(node, message) do
-    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name)} <- #{inspect(message)}")
+    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
   end
 
   def debug_out(node, message) do
-    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name)} -> #{inspect(message)}")
+    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t -> #{inspect(message)}")
   end
 
   def debug_stop(node) do
-    if @debug, do: IO.puts(IO.ANSI.red() <> "#{inspect(self())} - #{inspect(node.name)} stopping" <> IO.ANSI.reset())
+    if @debug, do: IO.puts(IO.ANSI.red() <> "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t stopping" <> IO.ANSI.reset())
+  end
+
+  def debug_send(node, message) do
+    if @send, do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
+  end
+
+  def debug_meta_in(node, message) do
+    if @meta,
+      do:
+        IO.puts(
+          IO.ANSI.yellow() <>
+            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-in  #{inspect(message)}" <> IO.ANSI.reset()
+        )
+  end
+
+  def debug_meta_out(node, message) do
+    if @meta,
+      do:
+        IO.puts(
+          IO.ANSI.yellow() <>
+            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-out #{inspect(message)}" <> IO.ANSI.reset()
+        )
   end
 
   # -----------------------------------------------------------------------------
@@ -29,9 +54,32 @@ defmodule Creek.Stream.Process do
     # Flush out buffer
     receive do
       {:send, to, payload} ->
-        debug_in(node, {:send, to, payload})
+        debug_send(node, {:send, to, payload})
+
+        payload =
+          if node.meta do
+            debug_meta_in(node, {:out, payload})
+
+            result =
+              single({:out, payload})
+              ~> node.meta
+              |> run(head())
+              |> get()
+
+            debug_meta_out(node, result)
+
+            if result != nil do
+              result
+            else
+              payload
+            end
+          else
+            payload
+          end
+
+        debug_out(node, payload)
         send(to, payload)
-        debug_out(node, {to, payload})
+
         srloop(node, ds)
     after
       0 ->
@@ -76,9 +124,32 @@ defmodule Creek.Stream.Process do
     # Flush out buffer
     receive do
       {:send, to, payload} ->
-        debug_in(node, {:send, to, payload})
-        debug_out(node, {to, payload})
+        debug_send(node, {:send, to, payload})
+
+        payload =
+          if node.meta do
+            debug_meta_in(node, {:out, payload})
+
+            result =
+              single({:out, payload})
+              ~> node.meta
+              |> run(head())
+              |> get()
+
+            debug_meta_out(node, result)
+
+            if result != nil do
+              result
+            else
+              payload
+            end
+          else
+            payload
+          end
+
+        debug_out(node, payload)
         send(to, payload)
+
         ploop(node, ds, us)
     after
       0 ->
@@ -98,6 +169,28 @@ defmodule Creek.Stream.Process do
 
           {:next, value} ->
             debug_in(node, {:next, value})
+            # Check to see if there is a meta level.
+            {:next, value} =
+              if node.meta do
+                debug_meta_in(node, {:in, {:next, value}})
+
+                result =
+                  single({:in, {:next, value}})
+                  ~> node.meta
+                  |> run(head())
+                  |> get()
+
+                debug_meta_out(node, result)
+
+                if result != nil do
+                  result
+                else
+                  {:next, value}
+                end
+              else
+                {:next, value}
+              end
+
             node.next.(node.argument, value, ds)
             ploop(node, ds, us)
 
@@ -147,9 +240,28 @@ defmodule Creek.Stream.Process do
     # """
     receive do
       {:send, to, payload} ->
-        debug_in(node, {:send, to, payload})
-        debug_out(node, {to, payload})
-        send(to, payload)
+        debug_send(node, {:send, to, payload})
+
+        if node.meta do
+          result =
+            single({:out, payload})
+            ~> node.meta
+            |> run(head())
+            |> get()
+
+          if result != nil do
+            {to, payload} = result
+            send(to, payload)
+            debug_out(node, {to, payload})
+          else
+            send(to, payload)
+            debug_out(node, {to, payload})
+          end
+        else
+          send(to, payload)
+          debug_out(node, {to, payload})
+        end
+
         sloop(node, ivar, source, state, downstream, upstream)
     after
       0 ->
@@ -165,6 +277,28 @@ defmodule Creek.Stream.Process do
 
           {:next, value} ->
             debug_in(node, {:next, value})
+
+            {:next, value} =
+              if node.meta do
+                debug_meta_in(node, {:in, {:next, value}})
+
+                result =
+                  single({:in, {:next, value}})
+                  ~> node.meta
+                  |> run(head())
+                  |> get()
+
+                debug_meta_out(node, result)
+
+                if result != nil do
+                  result
+                else
+                  {:next, value}
+                end
+              else
+                {:next, value}
+              end
+
             state = node.next.(node, value, state, downstream)
 
             case state do
