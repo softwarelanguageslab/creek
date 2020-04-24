@@ -2,23 +2,31 @@ defmodule Creek.Stream.Process do
   require Logger
   import Creek.{Node, Stream, Wiring}
 
-  @debug true
-  @send true
-  @meta true
+  @debug false
+  @send false
+  @meta false
   def debug_in(node, message) do
-    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
+    if @debug,
+      do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
   end
 
   def debug_out(node, message) do
-    if @debug, do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t -> #{inspect(message)}")
+    if @debug,
+      do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t -> #{inspect(message)}")
   end
 
   def debug_stop(node) do
-    if @debug, do: IO.puts(IO.ANSI.red() <> "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t stopping" <> IO.ANSI.reset())
+    if @debug,
+      do:
+        IO.puts(
+          IO.ANSI.red() <>
+            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t stopping" <> IO.ANSI.reset()
+        )
   end
 
   def debug_send(node, message) do
-    if @send, do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
+    if @send,
+      do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
   end
 
   def debug_meta_in(node, message) do
@@ -26,7 +34,8 @@ defmodule Creek.Stream.Process do
       do:
         IO.puts(
           IO.ANSI.yellow() <>
-            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-in  #{inspect(message)}" <> IO.ANSI.reset()
+            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-in  #{inspect(message)}" <>
+            IO.ANSI.reset()
         )
   end
 
@@ -35,7 +44,8 @@ defmodule Creek.Stream.Process do
       do:
         IO.puts(
           IO.ANSI.yellow() <>
-            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-out #{inspect(message)}" <> IO.ANSI.reset()
+            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-out #{inspect(message)}" <>
+            IO.ANSI.reset()
         )
   end
 
@@ -84,6 +94,9 @@ defmodule Creek.Stream.Process do
     after
       0 ->
         receive do
+          {:meta, _from, _payload} ->
+            srloop(node, ds)
+
           {:add_downstream, d} ->
             debug_in(node, {:add_downstream, d})
             debug_in(node, {:add_downstream, d})
@@ -154,6 +167,9 @@ defmodule Creek.Stream.Process do
     after
       0 ->
         receive do
+          {:meta, _from, _payload} ->
+            ploop(node, ds, us)
+
           {:add_downstream, d} ->
             debug_in(node, {:add_downstream, d})
             ploop(node, MapSet.put(ds, d), us)
@@ -266,6 +282,9 @@ defmodule Creek.Stream.Process do
     after
       0 ->
         receive do
+          {:meta, _from, _payload} ->
+            sloop(node, ivar, source, state, downstream, upstream)
+
           :init ->
             debug_in(node, :init)
             send(self(), {:send, source, {:subscribe, self()}})

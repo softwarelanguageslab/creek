@@ -1,20 +1,22 @@
 defmodule Creek.Node.Operator.Map do
   def next(proc, value, downstream) do
-    # send(d, {:next, proc.(value)})
     for d <- downstream do
       send(self(), {:send, d, {:next, proc.(value)}})
     end
   end
 
   def complete(from, upstream, downstream) do
-    # Dispose the upstream, as it's done.
-    # send(from, :dispose)
-    send(self(), {:send, from, :dispose})
+    # We ignore all the complete messages, except the last.
+    IO.puts("MapSet.to_list(upstream) == [from] = #{MapSet.to_list(upstream) == [from]}")
 
-    # Notify our downstream.
     if MapSet.to_list(upstream) == [from] do
-      # send(d, {:complete, self()})
-      for d <- downstream, do: send(self(), {:send, d, {:complete, self()}})
+      # Notify our downstream.
+      if MapSet.to_list(upstream) == [from] do
+        for d <- downstream, do: send(self(), {:send, d, {:complete, self()}})
+      end
     end
+
+    # Dispose the upstream, as it's done.
+    send(self(), {:send, from, :dispose})
   end
 end

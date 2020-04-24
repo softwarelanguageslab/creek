@@ -1,5 +1,5 @@
 defmodule Creek.Node.Sink.Head do
-  def complete(state, _downstream) do
+  def complete(_state, _downstream) do
     {:done, nil}
   end
 

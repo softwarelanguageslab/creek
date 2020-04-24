@@ -1,6 +1,6 @@
 defmodule Creek.Meta.Encrypt do
   require Logger
-  import Creek.{Wiring, Stream, Node}
+  import Creek.{Node}
 
   def sink() do
     map(fn {dir, payload} ->

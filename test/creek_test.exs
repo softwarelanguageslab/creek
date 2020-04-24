@@ -37,7 +37,6 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Source
-  @tag :stop
   test "single" do
     dag = single(0)
 
@@ -64,12 +63,15 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Mergeg dag
+  @tag :fail
   test "map two upstreams" do
     dag = [single(0), single(0)] ~>> map(fn x -> x + 1 end)
 
     stream = run(dag, all())
 
     result = get(stream)
+
+    assert result == [1, 1]
 
     assert_torn_down(stream)
   end
@@ -175,7 +177,6 @@ defmodule CreekTest do
     assert_torn_down(left)
   end
 
-  @tag :fail
   test "fanout 2 branches" do
     dag = single(0)
     stream = run(dag, fanout())
