@@ -11,14 +11,16 @@ defmodule CreekTest do
     stream.graph
     |> MutableGraph.map_vertices(fn v ->
       if Process.alive?(v) do
-        IO.puts "!!!!! #{inspect v} is still alive"
+        IO.puts("!!!!! #{inspect(v)} is still alive")
       end
+
       assert false == Process.alive?(v)
     end)
 
     if Process.alive?(stream.sink) do
-      IO.puts "!!!! #{inspect stream.sink} is still alive"
+      IO.puts("!!!! #{inspect(stream.sink)} is still alive")
     end
+
     assert false == Process.alive?(stream.sink)
   end
 
@@ -75,7 +77,9 @@ defmodule CreekTest do
   # -----------------------------------------------------------------------------
   # Operators
   test "map" do
-    dag = single(0) ~> map(fn x -> x + 1 end)
+    dag =
+      single(0)
+      ~> map(fn x -> x + 1 end)
 
     stream = run(dag, all())
 
