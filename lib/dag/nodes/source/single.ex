@@ -1,12 +1,10 @@
 defmodule Creek.Node.Source.Single do
-  def subscribe(value, downstream) do
-    Process.sleep(100)
+  import Creek.Node.Macros
+  require Creek.Node.Macros
 
-    for d <- downstream do
-      # send(d, {:next, value})
-      send(self(), {:send, d, {:next, value}})
-      # send(d, {:complete, self()})
-      send(self(), {:send, d, {:complete, self()}})
-    end
+  def subscribe(this) do
+    Process.sleep(100)
+    emit_value(this.argument)
+    emit_complete()
   end
 end

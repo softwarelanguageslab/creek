@@ -1,13 +1,13 @@
 defmodule Creek.Node.Sink.FanOut do
-  def complete(state, _downstream) do
-    {:continue, state}
+  import Creek.Node.Macros
+  require Creek.Node.Macros
+
+  def complete(_this, _from) do
+    nil
   end
 
-  def next(_, value, state, downstream) do
-    for d <- downstream do
-      send(self(), {:send, d, {:next, value}})
-    end
-
-    {:continue, state}
+  def next(_this, value) do
+    emit_value(value)
+    nil
   end
 end

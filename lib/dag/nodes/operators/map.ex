@@ -1,22 +1,15 @@
 defmodule Creek.Node.Operator.Map do
-  def next(proc, value, downstream) do
-    for d <- downstream do
-      send(self(), {:send, d, {:next, proc.(value)}})
-    end
+  import Creek.Node.Macros
+  require Creek.Node.Macros
+
+  def next(this, value) do
+    func = this.argument
+    new_value = func.(value)
+    emit_value(new_value)
   end
 
-  def complete(from, upstream, downstream) do
-    # We ignore all the complete messages, except the last.
-    IO.puts("MapSet.to_list(upstream) == [from] = #{MapSet.to_list(upstream) == [from]}")
-
-    if MapSet.to_list(upstream) == [from] do
-      # Notify our downstream.
-      if MapSet.to_list(upstream) == [from] do
-        for d <- downstream, do: send(self(), {:send, d, {:complete, self()}})
-      end
-    end
-
-    # Dispose the upstream, as it's done.
-    send(self(), {:send, from, :dispose})
+  def complete(this, from) do
+    if Enum.count(this.upstream) == 1, do: emit_complete()
+    dispose(from)
   end
 end

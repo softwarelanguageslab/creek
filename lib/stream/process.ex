@@ -63,8 +63,25 @@ defmodule Creek.Stream.Process do
     # """
     # Flush out buffer
     receive do
+      # Emit sends a message to all the downstreams.
+      {:emit_value, value} ->
+        for d <- ds do
+          send(self(), {:send, d, {:next, self(), value}})
+        end
+
+        srloop(node, ds)
+
+      {:emit_complete} ->
+        for d <- ds do
+          send(self(), {:send, d, {:complete, self()}})
+        end
+
+        srloop(node, ds)
+
+      # emit_complete
+
       {:send, to, payload} ->
-        debug_send(node, {:send, to, payload})
+        # debug_send(node, {:send, to, payload})
 
         payload =
           if node.meta do
@@ -104,7 +121,8 @@ defmodule Creek.Stream.Process do
 
           {:subscribe, d} ->
             debug_in(node, {:subscribe, d})
-            node.subscribe.(node.argument, ds)
+            this = %{argument: node.argument}
+            node.subscribe.(this)
             srloop(node, ds)
 
           :dispose ->
@@ -136,6 +154,24 @@ defmodule Creek.Stream.Process do
     # """
     # Flush out buffer
     receive do
+      {:emit_value, value} ->
+        for d <- ds do
+          send(self(), {:send, d, {:next, self(), value}})
+        end
+
+        ploop(node, ds, us)
+
+      {:emit_complete} ->
+        for d <- ds do
+          send(self(), {:send, d, {:complete, self()}})
+        end
+
+        ploop(node, ds, us)
+
+      {:emit_dispose_upstream, who} ->
+        send(self(), {:send, who, :dispose})
+        ploop(node, ds, us)
+
       {:send, to, payload} ->
         debug_send(node, {:send, to, payload})
 
@@ -183,36 +219,15 @@ defmodule Creek.Stream.Process do
             for u <- us, do: send(u, {:subscribe, self()})
             ploop(node, ds, us)
 
-          {:next, value} ->
-            debug_in(node, {:next, value})
-            # Check to see if there is a meta level.
-            {:next, value} =
-              if node.meta do
-                debug_meta_in(node, {:in, {:next, value}})
-
-                result =
-                  single({:in, {:next, value}})
-                  ~> node.meta
-                  |> run(head())
-                  |> get()
-
-                debug_meta_out(node, result)
-
-                if result != nil do
-                  result
-                else
-                  {:next, value}
-                end
-              else
-                {:next, value}
-              end
-
-            node.next.(node.argument, value, ds)
+          {:next, from, value} ->
+            debug_in(node, {:next, from, value})
+            this = %{argument: node.argument, downstream: ds |> Enum.to_list()}
+            node.next.(this, value)
             ploop(node, ds, us)
 
           {:complete, upstream} ->
             debug_in(node, {:complete, upstream})
-            node.complete.(upstream, us, ds)
+            node.complete.(%{upstream: us}, upstream)
             us = MapSet.delete(us, upstream)
             ploop(node, ds, us)
 
@@ -255,6 +270,23 @@ defmodule Creek.Stream.Process do
     # Sink: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
     # """
     receive do
+      {:yield, value} ->
+        Ivar.put(ivar, value)
+        debug_out(node, "putting value in ivar: #{inspect(state)}")
+        send(self(), {:send, self(), :stop})
+        sloop(node, ivar, source, state, downstream, upstream)
+
+      {:emit_value, value} ->
+        for d <- downstream do
+          send(self(), {:send, d, {:next, self(), value}})
+        end
+
+        sloop(node, ivar, source, state, downstream, upstream)
+
+      {:emit_dispose_upstream, who} ->
+        send(self(), {:send, who, :dispose})
+        sloop(node, ivar, source, state, downstream, upstream)
+
       {:send, to, payload} ->
         debug_send(node, {:send, to, payload})
 
@@ -294,42 +326,11 @@ defmodule Creek.Stream.Process do
             debug_in(node, {:subscribe, who})
             sloop(node, ivar, source, state, downstream, upstream)
 
-          {:next, value} ->
-            debug_in(node, {:next, value})
-
-            {:next, value} =
-              if node.meta do
-                debug_meta_in(node, {:in, {:next, value}})
-
-                result =
-                  single({:in, {:next, value}})
-                  ~> node.meta
-                  |> run(head())
-                  |> get()
-
-                debug_meta_out(node, result)
-
-                if result != nil do
-                  result
-                else
-                  {:next, value}
-                end
-              else
-                {:next, value}
-              end
-
-            state = node.next.(node, value, state, downstream)
-
-            case state do
-              {:continue, state} ->
-                sloop(node, ivar, source, state, downstream, upstream)
-
-              {:done, state} ->
-                Ivar.put(ivar, state)
-                send(self(), {:send, source, :dispose})
-                send(self(), {:send, self(), :stop})
-                sloop(node, ivar, source, state, downstream, upstream)
-            end
+          {:next, from, value} ->
+            debug_in(node, {:next, from, value})
+            this = %{downstream: downstream, state: state}
+            state = node.next.(this, from, value)
+            sloop(node, ivar, source, state, downstream, upstream)
 
           :stop ->
             debug_stop(node)
@@ -337,23 +338,10 @@ defmodule Creek.Stream.Process do
 
           {:complete, from} ->
             debug_in(node, {:complete, from})
-            result = node.complete.(state, downstream)
+            this = %{downstream: downstream, state: state}
+            node.complete.(this, from)
 
-            case result do
-              {:done, state} ->
-                Ivar.put(ivar, state)
-                debug_out(node, "putting value in ivar: #{inspect(state)}")
-                send(self(), {:send, source, :dispose})
-                send(self(), {:send, self(), :stop})
-                sloop(node, ivar, source, state, downstream, upstream)
-
-              {:continue, state} ->
-                for d <- downstream do
-                  send(self(), {:send, d, {:complete, self()}})
-                end
-
-                sloop(node, ivar, source, state, downstream, upstream)
-            end
+            sloop(node, ivar, source, state, downstream, upstream)
 
           {:add_downstream, d} ->
             debug_in(node, {:add_downstream, d})

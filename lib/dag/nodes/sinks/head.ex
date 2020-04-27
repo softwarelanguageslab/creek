@@ -1,9 +1,16 @@
 defmodule Creek.Node.Sink.Head do
-  def complete(_state, _downstream) do
-    {:done, nil}
+  import Creek.Node.Macros
+  require Creek.Node.Macros
+
+  def complete(_this, from) do
+    dispose(from)
+    yield(nil)
+    nil
   end
 
-  def next(_, value, _, _downstream) do
-    {:done, value}
+  def next(_this, from, value) do
+    dispose(from)
+    yield(value)
+    nil
   end
 end
