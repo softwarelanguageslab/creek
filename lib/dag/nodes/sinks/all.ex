@@ -4,6 +4,7 @@ defmodule Creek.Node.Sink.All do
 
   def complete(this, from) do
     dispose(from)
+    emit_complete()
     yield(this.state)
     nil
   end

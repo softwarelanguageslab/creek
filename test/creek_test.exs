@@ -63,7 +63,6 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Mergeg dag
-  @tag :fail
   test "map two upstreams" do
     dag = [single(0), single(0)] ~>> map(fn x -> x + 1 end)
 
@@ -192,6 +191,7 @@ defmodule CreekTest do
     assert_torn_down(right)
   end
 
+  @tag :fail
   test "fanout 3 branches" do
     # For this test we assume it's fair that the single has a small delay to ensure the complet message is propagated on time.
     dag = single(0)

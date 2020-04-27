@@ -287,6 +287,13 @@ defmodule Creek.Stream.Process do
         send(self(), {:send, who, :dispose})
         sloop(node, ivar, source, state, downstream, upstream)
 
+      {:emit_complete} ->
+        for d <- downstream do
+          send(self(), {:send, d, {:complete, self()}})
+        end
+
+        sloop(node, ivar, source, state, downstream, upstream)
+
       {:send, to, payload} ->
         debug_send(node, {:send, to, payload})
 
