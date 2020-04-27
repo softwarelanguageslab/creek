@@ -222,7 +222,7 @@ defmodule Creek.Stream.Process do
           {:next, from, value} ->
             debug_in(node, {:next, from, value})
             this = %{argument: node.argument, downstream: ds |> Enum.to_list()}
-            node.next.(this, value)
+            node.next.(this, from, value)
             ploop(node, ds, us)
 
           {:complete, upstream} ->

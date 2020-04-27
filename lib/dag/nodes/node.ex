@@ -39,7 +39,7 @@ defmodule Creek.Node do
       :argument => f,
       :in => 1,
       :out => 1,
-      :next => &Creek.Node.Operator.Map.next/2,
+      :next => &Creek.Node.Operator.Map.next/3,
       :complete => &Creek.Node.Operator.Map.complete/2,
       :meta => nil
     }
@@ -53,7 +53,7 @@ defmodule Creek.Node do
       :argument => nil,
       :in => 1,
       :out => 1,
-      :next => &Creek.Node.Operator.Flatten.next/2,
+      :next => &Creek.Node.Operator.Flatten.next/3,
       :complete => &Creek.Node.Operator.Flatten.complete/2,
       :meta => nil
     }

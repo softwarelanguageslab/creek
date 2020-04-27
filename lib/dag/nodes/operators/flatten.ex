@@ -4,7 +4,7 @@ defmodule Creek.Node.Operator.Flatten do
 
   import Creek.Stream
 
-  def next(this, value) do
+  def next(this, _from, value) do
     [downstream] = this.downstream
 
     # Realize the value and direct its values to our downstream.
