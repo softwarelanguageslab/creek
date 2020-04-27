@@ -2,7 +2,7 @@ defmodule Creek.Node.Operator.Map do
   import Creek.Node.Macros
   require Creek.Node.Macros
 
-  def next(this, value) do
+  def next(this, _from, value) do
     func = this.argument
     new_value = func.(value)
     emit_value(new_value)
