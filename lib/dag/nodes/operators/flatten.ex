@@ -1,22 +1,16 @@
 defmodule Creek.Node.Operator.Flatten do
-  import Creek.Node.Macros
-  require Creek.Node.Macros
-
   import Creek.Stream
 
-  def next(this, _from, value) do
+  def next(this, state, _from, value) do
     [downstream] = this.downstream
-
-    # Realize the value and direct its values to our downstream.
+    # Proxy all the elements to the downstream node directly.
     value
     |> run(downstream)
+
+    {state, :skip}
   end
 
-  def complete(this, from) do
-    # If we only have one more upstream we can safely complete.
-    if MapSet.size(this.upstream) == 1, do: emit_complete()
-
-    # Dispose the upstream, as it's done.
-    dispose(from)
+  def complete(this, state) do
+    {state, :complete}
   end
 end

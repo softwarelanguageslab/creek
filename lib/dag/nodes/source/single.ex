@@ -2,9 +2,16 @@ defmodule Creek.Node.Source.Single do
   import Creek.Node.Macros
   require Creek.Node.Macros
 
-  def subscribe(this) do
-    Process.sleep(100)
-    emit_value(this.argument)
-    emit_complete()
+  def tick(_this, state) do
+    if state != nil do
+      value = state
+      {nil, {:next, value}}
+    else
+      {state, :complete}
+    end
+  end
+
+  def subscribe(_this, state, _from) do
+    {state, :continue}
   end
 end

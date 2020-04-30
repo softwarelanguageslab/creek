@@ -1,14 +1,9 @@
 defmodule Creek.Node.Sink.FanOut do
-  import Creek.Node.Macros
-  require Creek.Node.Macros
-
-  def complete(_this, _from) do
-    emit_complete()
-    nil
+  def next(this, state, _from, value) do
+    {state, {:next, value}}
   end
 
-  def next(_this, _from, value) do
-    emit_value(value)
-    nil
+  def complete(this, state) do
+    {state, {:complete, state}}
   end
 end
