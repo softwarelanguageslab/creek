@@ -1,8 +1,5 @@
 defmodule Creek.Node.Source.Single do
-  import Creek.Node.Macros
-  require Creek.Node.Macros
-
-  def tick(_this, state) do
+  def tick(this, state) do
     if state != nil do
       value = state
       {nil, {:next, value}}

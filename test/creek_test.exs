@@ -11,14 +11,12 @@ defmodule CreekTest do
     stream.graph
     |> MutableGraph.map_vertices(fn v ->
       if Process.alive?(v) do
-        IO.puts("!!!!! #{inspect(v)} is still alive")
       end
 
       assert false == Process.alive?(v)
     end)
 
     if Process.alive?(stream.sink) do
-      IO.puts("!!!! #{inspect(stream.sink)} is still alive")
     end
 
     assert false == Process.alive?(stream.sink)
@@ -37,6 +35,7 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Source
+
   test "single" do
     dag = single(0)
 
@@ -63,6 +62,7 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Mergeg dag
+
   test "map two upstreams" do
     dag = [single(0), single(0)] ~>> map(fn x -> x + 1 end)
 
@@ -77,6 +77,7 @@ defmodule CreekTest do
 
   # -----------------------------------------------------------------------------
   # Operators
+
   test "map" do
     dag =
       single(0)
@@ -186,12 +187,12 @@ defmodule CreekTest do
     assert 0 = get(left)
     assert 0 == get(right)
 
-    assert_up(stream)
+    assert_torn_down(stream)
     assert_torn_down(left)
     assert_torn_down(right)
   end
 
-  @tag :fail
+
   test "fanout 3 branches" do
     # For this test we assume it's fair that the single has a small delay to ensure the complet message is propagated on time.
     dag = single(0)
@@ -205,7 +206,7 @@ defmodule CreekTest do
     assert [0] = get(middle)
     assert 0 == get(right)
 
-    assert_up(stream)
+    assert_torn_down(stream)
     assert_torn_down(left)
     assert_torn_down(middle)
     assert_torn_down(right)

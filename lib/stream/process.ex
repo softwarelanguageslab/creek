@@ -2,258 +2,183 @@ defmodule Creek.Stream.Process do
   require Logger
   import Creek.{Node, Stream, Wiring}
 
-  @debug false
-  @send false
-  @meta false
-  def debug_in(node, message) do
-    if @debug,
-      do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
-  end
-
-  def debug_out(node, message) do
-    if @debug,
-      do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t -> #{inspect(message)}")
-  end
-
-  def debug_stop(node) do
-    if @debug,
-      do:
-        IO.puts(
-          IO.ANSI.red() <>
-            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t stopping" <> IO.ANSI.reset()
-        )
-  end
-
-  def debug_send(node, message) do
-    if @send,
-      do: IO.puts("#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t <- #{inspect(message)}")
-  end
-
-  def debug_meta_in(node, message) do
-    if @meta,
-      do:
-        IO.puts(
-          IO.ANSI.yellow() <>
-            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-in  #{inspect(message)}" <>
-            IO.ANSI.reset()
-        )
-  end
-
-  def debug_meta_out(node, message) do
-    if @meta,
-      do:
-        IO.puts(
-          IO.ANSI.yellow() <>
-            "#{inspect(self())} - #{inspect(node.name) |> String.pad_trailing(8)}\t meta-out #{inspect(message)}" <>
-            IO.ANSI.reset()
-        )
+  def log(node, message) do
+    Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
   end
 
   # -----------------------------------------------------------------------------
   # Source
 
-  def source(node, ds) do
-    # Logger.debug("#{inspect(self())} Source running: #{inspect(node)}")
-    srloop(node, ds)
+  def source(node, state, ds) do
+    srloop(node, state, ds)
   end
 
-  defp srloop(node, ds) do
-    # IO.puts """
-    # Source: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
-    # """
-    # Flush out buffer
+  defp srloop(node, state, ds) do
     receive do
-      # Emit sends a message to all the downstreams.
-      {:emit_value, value} ->
-        for d <- ds do
-          send(self(), {:send, d, {:next, self(), value}})
+      # -------------------------------------------------------------------------
+      # Bookkeeping for stream topology.
+
+      {:add_downstream, d} ->
+        log(node, "add downstream: #{inspect(d)}")
+        srloop(node, state, MapSet.put(ds, d))
+
+      # -------------------------------------------------------------------------
+      # Base protocol.
+
+      {:subscribe, from} ->
+        log(node, "subscribe from : #{inspect(from)}")
+        # Unused in the streams for now.
+        this = %{}
+        {state, response} = node.subscribe.(this, state, from)
+
+        case response do
+          :continue ->
+            send(self(), :tick)
+            :ok
+
+          _ ->
+            Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
         end
 
-        srloop(node, ds)
+        srloop(node, state, ds)
 
-      {:emit_complete} ->
-        for d <- ds do
-          send(self(), {:send, d, {:complete, self()}})
+      # -------------------------------------------------------------------------
+      # Management protocol.
+
+      :tick ->
+        log(node, "tick")
+        # Unused in the streams for now.
+        this = %{}
+        {state, response} = node.tick.(this, state)
+
+        case response do
+          {:next, value} ->
+            send(self(), :tick)
+            for d <- ds, do: send(d, {:next, value, self()})
+
+          :complete ->
+            for d <- ds, do: send(d, {:complete, self()})
+            send(self(), {:dispose, self()})
+
+          _ ->
+            Logger.error("Source callback tick/2 produced invalid returnvalue: #{inspect(response)}")
         end
 
-        srloop(node, ds)
+        srloop(node, state, ds)
 
-      # emit_complete
+      {:dispose, from} ->
+        log(node, "dispose from #{inspect(from)}")
+        send(self(), :stop)
+        srloop(node, state, ds)
 
-      {:send, to, payload} ->
-        # debug_send(node, {:send, to, payload})
+      :stop ->
+        log(node, "stop")
+        :stop
 
-        payload =
-          if node.meta do
-            debug_meta_in(node, {:out, payload})
-
-            result =
-              single({:out, payload})
-              ~> node.meta
-              |> run(head())
-              |> get()
-
-            debug_meta_out(node, result)
-
-            if result != nil do
-              result
-            else
-              payload
-            end
-          else
-            payload
-          end
-
-        debug_out(node, payload)
-        send(to, payload)
-
-        srloop(node, ds)
-    after
-      0 ->
-        receive do
-          {:meta, _from, _payload} ->
-            srloop(node, ds)
-
-          {:add_downstream, d} ->
-            debug_in(node, {:add_downstream, d})
-            debug_in(node, {:add_downstream, d})
-            srloop(node, MapSet.put(ds, d))
-
-          {:subscribe, d} ->
-            debug_in(node, {:subscribe, d})
-            this = %{argument: node.argument}
-            node.subscribe.(this)
-            srloop(node, ds)
-
-          :dispose ->
-            debug_in(node, :dispose)
-            send(self(), {:send, self(), :stop})
-            srloop(node, ds)
-
-          :stop ->
-            debug_stop(node)
-            :stop
-
-          m ->
-            IO.puts("Source did not understand: #{inspect(m)}")
-        end
+      m ->
+        IO.puts("Source did not understand: #{inspect(m)}")
     end
   end
 
   # -----------------------------------------------------------------------------
   # Process
 
-  def process(node, ds, us) do
-    # Logger.debug("#{inspect(self())} Process running: #{inspect(node)}")
-    ploop(node, ds, us)
+  def process(node, state, ds, us) do
+    ploop(node, state, ds, us)
   end
 
-  defp ploop(node, ds, us) do
-    # IO.puts """
-    # Operator: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
-    # """
-    # Flush out buffer
+  defp ploop(node, state, ds, us) do
     receive do
-      {:emit_value, value} ->
-        for d <- ds do
-          send(self(), {:send, d, {:next, self(), value}})
+      # -------------------------------------------------------------------------
+      # Bookkeeping for stream topology.
+
+      {:add_downstream, d} ->
+        log(node, "add downstream: #{inspect(d)}")
+        ploop(node, state, MapSet.put(ds, d), us)
+
+      {:add_upstream, u} ->
+        log(node, "add upstream #{inspect(u)}")
+        ploop(node, state, ds, MapSet.put(us, u))
+
+      # -------------------------------------------------------------------------
+      # Base protocol.
+
+      # Operators just send the subscribe upstream.
+      {:subscribe, from} ->
+        log(node, "subscribe from : #{inspect(from)}")
+        for u <- us, do: send(u, {:subscribe, self()})
+        ploop(node, state, ds, us)
+
+      {:next, value, from} ->
+        log(node, "next #{inspect(value)} from #{inspect(from)}")
+        this = %{arg: node.argument, downstream: Enum.to_list(ds)}
+        {state, response} = node.next.(this, state, from, value)
+
+        case response do
+          {:next, value} ->
+            for d <- ds, do: send(d, {:next, value, self()})
+
+          :skip ->
+            :ok
+
+          _ ->
+            Logger.error(
+              "#{inspect(self())} Operator callback subscribe/3 produced invalid returnvalue: #{inspect(response)}"
+            )
         end
 
-        ploop(node, ds, us)
+        ploop(node, state, ds, us)
 
-      {:emit_complete} ->
-        for d <- ds do
-          send(self(), {:send, d, {:complete, self()}})
-        end
+      {:complete, from} ->
+        log(node, "complete from #{inspect(from)} (#{Enum.count(us)} upstreams)")
 
-        ploop(node, ds, us)
+        # We only call the complete callback when all upstreams completed.
+        if Enum.count(us) == 1 do
+          this = %{}
+          {state, response} = node.complete.(this, state)
 
-      {:emit_dispose_upstream, who} ->
-        send(self(), {:send, who, :dispose})
-        ploop(node, ds, us)
+          case response do
+            :complete ->
+              for d <- ds, do: send(d, {:complete, self()})
+              :ok
 
-      {:send, to, payload} ->
-        debug_send(node, {:send, to, payload})
-
-        payload =
-          if node.meta do
-            debug_meta_in(node, {:out, payload})
-
-            result =
-              single({:out, payload})
-              ~> node.meta
-              |> run(head())
-              |> get()
-
-            debug_meta_out(node, result)
-
-            if result != nil do
-              result
-            else
-              payload
-            end
-          else
-            payload
+            _ ->
+              Logger.error("Operator callback complete/3 produced invalid returnvalue: #{inspect(response)}")
           end
 
-        debug_out(node, payload)
-        send(to, payload)
-
-        ploop(node, ds, us)
-    after
-      0 ->
-        receive do
-          {:meta, _from, _payload} ->
-            ploop(node, ds, us)
-
-          {:add_downstream, d} ->
-            debug_in(node, {:add_downstream, d})
-            ploop(node, MapSet.put(ds, d), us)
-
-          {:add_upstream, u} ->
-            debug_in(node, {:add_upstream, u})
-            ploop(node, ds, MapSet.put(us, u))
-
-          {:subscribe, who} ->
-            debug_in(node, {:subscribe, who})
-            for u <- us, do: send(u, {:subscribe, self()})
-            ploop(node, ds, us)
-
-          {:next, from, value} ->
-            debug_in(node, {:next, from, value})
-            this = %{argument: node.argument, downstream: ds |> Enum.to_list()}
-            node.next.(this, from, value)
-            ploop(node, ds, us)
-
-          {:complete, upstream} ->
-            debug_in(node, {:complete, upstream})
-            node.complete.(%{upstream: us}, upstream)
-            us = MapSet.delete(us, upstream)
-            ploop(node, ds, us)
-
-          :dispose ->
-            debug_in(node, :dispose)
-
-            for u <- us do
-              send(self(), {:send, u, :dispose})
-            end
-
-            send(self(), {:send, self(), :stop})
-            ploop(node, ds, us)
-
-          :stop ->
-            debug_stop(node)
-            :stop
-
-          {:send, to, payload} ->
-            debug_in(node, {:send, to, payload})
-            send(to, payload)
-            ploop(node, ds, us)
-
-          m ->
-            IO.puts("Process did not understand: #{inspect(m)}")
-            ploop(node, ds, us)
+          # Remove the stream from our upstream and send it the dispose signal.
+          send(from, {:dispose, self()})
+          us = MapSet.delete(us, from)
+          ploop(node, state, ds, us)
+        else
+          send(from, {:dispose, self()})
+          us = MapSet.delete(us, from)
+          ploop(node, state, ds, us)
         end
+
+      # -------------------------------------------------------------------------
+      # Management protocol.
+
+      {:dispose, from} ->
+        log(node, "dispose from #{inspect(from)}")
+        # If we dispose ourselves we must do so.
+        # If the dispose is from downstream we ignore it if we have other downstreams.
+        if from == self() or Enum.count(ds) == 1 do
+          # Let our upstream know to dispose.
+          for u <- us, do: send(u, {:dispose, self()})
+
+          send(self(), :stop)
+        end
+
+        ploop(node, state, ds, us)
+
+      :stop ->
+        log(node, "stop")
+        :stop
+
+      m ->
+        IO.puts("Process did not understand: #{inspect(m)}")
+        ploop(node, state, ds, us)
     end
   end
 
@@ -261,112 +186,87 @@ defmodule Creek.Stream.Process do
   # Sinks
 
   def sink(node, ivar, source) do
-    # Logger.debug("#{inspect(self())} Sink running #{inspect(node)} #{inspect(ivar)} #{inspect(source)}")
-    sloop(node, ivar, source, node.state, [], [])
+    sloop(node, ivar, source, node.state, MapSet.new(), MapSet.new())
   end
 
-  defp sloop(node, ivar, source, state, downstream, upstream) do
-    # IO.puts """
-    # Sink: #{inspect self()} : #{inspect :erlang.process_info(self(), :messages)}
-    # """
+  defp sloop(node, ivar, source, state, ds, us) do
     receive do
-      {:yield, value} ->
-        Ivar.put(ivar, value)
-        debug_out(node, "putting value in ivar: #{inspect(state)}")
-        send(self(), {:send, self(), :stop})
-        sloop(node, ivar, source, state, downstream, upstream)
+      # -------------------------------------------------------------------------
+      # Bookkeeping for stream topology.
+      {:add_downstream, d} ->
+        log(node, "add downstream: #{inspect(d)}")
+        sloop(node, ivar, source, state, MapSet.put(ds, d), us)
 
-      {:emit_value, value} ->
-        for d <- downstream do
-          send(self(), {:send, d, {:next, self(), value}})
+      {:add_upstream, u} ->
+        log(node, "add upstream #{inspect(u)}")
+        sloop(node, ivar, source, state, ds, MapSet.put(us, u))
+
+      # -------------------------------------------------------------------------
+      # Base protocol.
+
+      {:subscribe, from} ->
+        log(node, "subscribe from : #{inspect(from)}")
+        for u <- us, do: send(u, {:subscribe, self()})
+        sloop(node, ivar, source, state, ds, us)
+
+      {:next, value, from} ->
+        log(node, "next #{inspect(value)} from #{inspect(from)}")
+        this = %{}
+
+        {state, response} = node.next.(this, state, from, value)
+
+        case response do
+          {:next, value} ->
+            for d <- ds, do: send(d, {:next, value, self()})
+
+          :skip ->
+            :ok
+
+          {:yield, value} ->
+            Ivar.put(ivar, value)
+            send(self(), {:dispose, self()})
+            for d <- ds, do: send(d, {:complete, self()})
         end
 
-        sloop(node, ivar, source, state, downstream, upstream)
+        sloop(node, ivar, source, state, ds, us)
 
-      {:emit_dispose_upstream, who} ->
-        send(self(), {:send, who, :dispose})
-        sloop(node, ivar, source, state, downstream, upstream)
+      {:complete, from} ->
+        log(node, "complete from #{inspect(from)}")
+        this = %{}
+        {state, response} = node.complete.(this, state)
 
-      {:emit_complete} ->
-        for d <- downstream do
-          send(self(), {:send, d, {:complete, self()}})
+        case response do
+          {:complete, _state} ->
+            send(self(), {:dispose, self()})
+            for d <- ds, do: send(d, {:complete, self()})
+
+          {:yield, value} ->
+            log(node, "Putting value #{inspect(value)} in ivar")
+            Ivar.put(ivar, value)
+            send(self(), {:dispose, self()})
+            for d <- ds, do: send(d, {:complete, self()})
         end
 
-        sloop(node, ivar, source, state, downstream, upstream)
+        sloop(node, ivar, source, state, ds, us)
 
-      {:send, to, payload} ->
-        debug_send(node, {:send, to, payload})
+      # -------------------------------------------------------------------------
+      # Management protocol.
 
-        if node.meta do
-          result =
-            single({:out, payload})
-            ~> node.meta
-            |> run(head())
-            |> get()
+      {:dispose, from} ->
+        log(node, "dispose from #{inspect(from)}")
+        # Let our upstream know to dispose.
+        for u <- us, do: send(u, {:dispose, self()})
 
-          if result != nil do
-            {to, payload} = result
-            send(to, payload)
-            debug_out(node, {to, payload})
-          else
-            send(to, payload)
-            debug_out(node, {to, payload})
-          end
-        else
-          send(to, payload)
-          debug_out(node, {to, payload})
-        end
+        send(self(), :stop)
+        sloop(node, ivar, source, state, ds, us)
 
-        sloop(node, ivar, source, state, downstream, upstream)
-    after
-      0 ->
-        receive do
-          {:meta, _from, _payload} ->
-            sloop(node, ivar, source, state, downstream, upstream)
+      :stop ->
+        log(node, "stop")
+        :stop
 
-          :init ->
-            debug_in(node, :init)
-            send(self(), {:send, source, {:subscribe, self()}})
-            sloop(node, ivar, source, state, downstream, upstream)
-
-          {:subscribe, who} ->
-            debug_in(node, {:subscribe, who})
-            sloop(node, ivar, source, state, downstream, upstream)
-
-          {:next, from, value} ->
-            debug_in(node, {:next, from, value})
-            this = %{downstream: downstream, state: state}
-            state = node.next.(this, from, value)
-            sloop(node, ivar, source, state, downstream, upstream)
-
-          :stop ->
-            debug_stop(node)
-            :stop
-
-          {:complete, from} ->
-            debug_in(node, {:complete, from})
-            this = %{downstream: downstream, state: state}
-            node.complete.(this, from)
-
-            sloop(node, ivar, source, state, downstream, upstream)
-
-          {:add_downstream, d} ->
-            debug_in(node, {:add_downstream, d})
-            sloop(node, ivar, source, state, downstream ++ [d], upstream)
-
-          {:add_upstream, u} ->
-            debug_in(node, {:add_upstream, u})
-            sloop(node, ivar, source, state, downstream, upstream ++ [u])
-
-          :dispose ->
-            debug_in(node, :dispose)
-            # send(self(), {:send, self(), :stop})
-            sloop(node, ivar, source, state, downstream, upstream)
-
-          m ->
-            IO.puts("Sink did not understand: #{inspect(m)}")
-            sloop(node, ivar, source, state, [], [])
-        end
+      m ->
+        IO.puts("Sink did not understand: #{inspect(m)}")
+        sloop(node, ivar, source, state, [], [])
     end
   end
 end

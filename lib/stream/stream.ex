@@ -34,6 +34,7 @@ defmodule Creek.Stream do
 
     # Add the sink as a downstream node to the sink of the graph.
     send(output, {:add_downstream, spawned_sink})
+    send(spawned_sink, {:add_upstream, output})
 
     # Connect the source of the dag and the sink of the stream.
     stream_sink = stream.sink
@@ -122,7 +123,7 @@ defmodule Creek.Stream do
     send(spawned_sink, {:add_upstream, output})
 
     # Start the subscription on the sink.
-    send(spawned_sink, :init)
+    send(spawned_sink, {:subscribe, self()})
 
     # Return the ivar.
     %{ivar: ivar, source: sources, sink: spawned_sink, graph: spawned_dag}
@@ -142,12 +143,12 @@ defmodule Creek.Stream do
     case node.type do
       :source ->
         spawn(fn ->
-          Creek.Stream.Process.source(node, MapSet.new())
+          Creek.Stream.Process.source(node, node.state, MapSet.new())
         end)
 
       :operator ->
         spawn(fn ->
-          Creek.Stream.Process.process(node, MapSet.new(), MapSet.new())
+          Creek.Stream.Process.process(node, node.state, MapSet.new(), MapSet.new())
         end)
     end
   end
