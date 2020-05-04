@@ -9,10 +9,6 @@ defmodule Creek.Node.Operator.Filter do
   end
 
   def complete(this, state) do
-    if Enum.count(this.upstream) == 1 do
-      {state, :complete}
-    else
-      {state, :skip}
-    end
+    {state, :complete}
   end
 end
