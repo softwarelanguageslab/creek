@@ -4,7 +4,7 @@ defmodule Creek.Node.Operator.Map do
     {state, {:next, new_value}}
   end
 
-  def complete(this, state) do
+  def complete(_this, state) do
     {state, :complete}
   end
 end

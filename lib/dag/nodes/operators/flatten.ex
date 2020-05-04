@@ -10,7 +10,7 @@ defmodule Creek.Node.Operator.Flatten do
     {state, :skip}
   end
 
-  def complete(this, state) do
+  def complete(_this, state) do
     {state, :complete}
   end
 end

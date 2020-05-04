@@ -1,6 +1,5 @@
 defmodule Creek.Stream.Process do
   require Logger
-  import Creek.{Node, Stream, Wiring}
 
   def log(node, message) do
     Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")

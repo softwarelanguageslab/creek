@@ -1,5 +1,5 @@
 defmodule Creek.Node.Source.Single do
-  def tick(this, state) do
+  def tick(_this, state) do
     if state != nil do
       value = state
       {nil, {:next, value}}

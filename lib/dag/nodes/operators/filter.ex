@@ -8,7 +8,7 @@ defmodule Creek.Node.Operator.Filter do
     end
   end
 
-  def complete(this, state) do
+  def complete(_this, state) do
     {state, :complete}
   end
 end
