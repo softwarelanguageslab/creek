@@ -3,7 +3,7 @@ defmodule Creek.Stream.Process do
   import Creek.{Wiring, Node, Stream}
 
   def log(node, message) do
-    Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
+    #Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
   end
 
   # -----------------------------------------------------------------------------
