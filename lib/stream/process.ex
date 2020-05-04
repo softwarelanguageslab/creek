@@ -1,8 +1,16 @@
 defmodule Creek.Stream.Process do
   require Logger
+  import Creek.{Wiring, Node, Stream}
 
   def log(node, message) do
     Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
+  end
+
+  # -----------------------------------------------------------------------------
+  # Meta Helpers
+
+  def create_meta_event(event, node, from, state, downstream, upstream) do
+    %{event: event, node: node, from: from, downstream: downstream, upstream: upstream, base: self(), state: state}
   end
 
   # -----------------------------------------------------------------------------
@@ -27,17 +35,29 @@ defmodule Creek.Stream.Process do
       {:subscribe, from} ->
         log(node, "subscribe from : #{inspect(from)}")
         # Unused in the streams for now.
-        this = %{}
-        {state, response} = node.subscribe.(this, state, from)
+        state =
+          if node.meta do
+            meta_event = create_meta_event(:subscribe, node, from, state, ds, [])
 
-        case response do
-          :continue ->
-            send(self(), :tick)
-            :ok
+              single(meta_event)
+              ~> node.meta
+              |> run(head())
+              |> get()
+          else
+            this = %{}
+            {state, response} = node.subscribe.(this, state, from)
 
-          _ ->
-            Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
-        end
+            case response do
+              :continue ->
+                send(self(), :tick)
+                :ok
+
+              _ ->
+                Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
+            end
+
+            state
+          end
 
         srloop(node, state, ds)
 

@@ -3,19 +3,23 @@ defmodule Creek.Meta.Encrypt do
   import Creek.{Node}
 
   def sink() do
-    map(fn {dir, payload} ->
-      case dir do
-        :out ->
-          nil
+    map(fn meta_event ->
+      case meta_event.event do
+        :subscribe ->
+          this = %{}
+          {state, response} = node.subscribe.(this, meta_event.state, meta_event.from)
 
-        :in ->
-          case payload do
-            {:next, {:encrypted, value}} ->
-              {:next, value}
+          case response do
+            :continue ->
+              send(meta_event.base, :tick)
+              :ok
 
             _ ->
-              nil
+              Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
           end
+
+          # Return response to base-level.
+          state
       end
     end)
   end
@@ -45,19 +49,23 @@ defmodule Creek.Meta.Encrypt do
   end
 
   def source() do
-    map(fn {dir, payload} ->
-      case dir do
-        :out ->
-          case payload do
-            {:next, value} ->
-              {:next, {:encrypted, value}}
+    map(fn meta_event ->
+      case meta_event.event do
+        :subscribe ->
+          this = %{}
+          {state, response} = meta_event.node.subscribe.(this, meta_event.state, meta_event.from)
+
+          case response do
+            :continue ->
+              send(meta_event.base, :tick)
+              :ok
 
             _ ->
-              nil
+              Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
           end
 
-        :in ->
-          nil
+          # Return response to base-level.
+          state
       end
     end)
   end
