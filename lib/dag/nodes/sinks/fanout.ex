@@ -1,10 +1,9 @@
 defmodule Creek.Node.Sink.FanOut do
-  def complete(state, downstream) do
-    {:continue, state}
+  def next(this, state, _from, value) do
+    {state, {:next, value}}
   end
 
-  def next(_, value, state, downstream) do
-    for d <- downstream, do: send(d, {:next, value})
-    {:continue, state}
+  def complete(this, state) do
+    {state, {:complete, state}}
   end
 end

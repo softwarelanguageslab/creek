@@ -1,9 +1,9 @@
 defmodule Creek.Node.Sink.Head do
-  def complete(state, _downstream) do
-    {:done, nil}
+  def next(this, state, _from, value) do
+    {state, {:yield, value}}
   end
 
-  def next(_, value, _, _downstream) do
-    {:done, value}
+  def complete(this, state) do
+    {state, {:yield, state}}
   end
 end

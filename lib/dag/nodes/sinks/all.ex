@@ -1,9 +1,10 @@
 defmodule Creek.Node.Sink.All do
-  def complete(state, _downstream) do
-    {:done, state}
+  def next(this, state, _from, value) do
+    new_state = state ++ [value]
+    {new_state, :skip}
   end
 
-  def next(_, value, state, _downstream) do
-    {:continue, state ++ [value]}
+  def complete(this, state) do
+    {state, {:yield, state}}
   end
 end

@@ -1,15 +1,10 @@
 defmodule Creek.Node.Operator.Map do
-  def next(proc, value, downstream) do
-    for d <- downstream, do: send(d, {:next, proc.(value)})
+  def next(this, state, _from, value) do
+    new_value = this.arg.(value)
+    {state, {:next, new_value}}
   end
 
-  def complete(from, upstream, downstream) do
-    # Dispose the upstream, as it's done.
-    send(from, :dispose)
-
-    # Notify our downstream.
-    if MapSet.to_list(upstream) == [from] do
-      for d <- downstream, do: send(d, {:complete, self()})
-    end
+  def complete(this, state) do
+    {state, :complete}
   end
 end

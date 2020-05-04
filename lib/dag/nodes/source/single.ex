@@ -1,11 +1,14 @@
 defmodule Creek.Node.Source.Single do
-  def subscribe(value, downstream) do
-    # for testing purposes
-    Process.sleep(value * 1000)
-
-    for d <- downstream do
-      send(d, {:next, value})
-      send(d, {:complete, self()})
+  def tick(this, state) do
+    if state != nil do
+      value = state
+      {nil, {:next, value}}
+    else
+      {state, :complete}
     end
+  end
+
+  def subscribe(_this, state, _from) do
+    {state, :continue}
   end
 end

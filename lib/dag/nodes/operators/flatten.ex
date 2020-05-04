@@ -1,22 +1,16 @@
 defmodule Creek.Node.Operator.Flatten do
   import Creek.Stream
 
-  def next(_proc, value, downstream) do
-    [downstream] = MapSet.to_list(downstream)
-
-    # The value is a DAG, so we realize it into our downstream.
+  def next(this, state, _from, value) do
+    [downstream] = this.downstream
+    # Proxy all the elements to the downstream node directly.
     value
     |> run(downstream)
+
+    {state, :skip}
   end
 
-  def complete(from, upstream, downstream) do
-    # Dispose the upstream, as it's done.
-    send(from, :dispose)
-
-    IO.puts "Flatten its upstream: "
-    # Notify our downstream.
-    if MapSet.to_list(upstream) == [from] do
-      for d <- downstream, do: send(d, {:complete, self()})
-    end
+  def complete(this, state) do
+    {state, :complete}
   end
 end
