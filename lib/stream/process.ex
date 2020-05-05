@@ -3,15 +3,17 @@ defmodule Creek.Stream.Process do
   import Creek.{Wiring, Node, Stream}
 
   def log(node, message) do
-    # Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
+    if false do
+      Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
+    end
   end
 
   # -----------------------------------------------------------------------------
   # Meta Helpers
 
-  def create_meta_event(event, node, from, state, downstream, upstream, payload \\ nil) do
+  def create_meta_event(event, node, from, state, downstream, upstream, ivar, payload \\ nil) do
     base = %{node: node, ref: self(), state: state}
-    %{event: event, base: base, from: from, downstream: downstream, upstream: upstream, payload: payload}
+    %{ivar: ivar, event: event, base: base, from: from, downstream: downstream, upstream: upstream, payload: payload}
   end
 
   def try_meta(event, node) do
@@ -47,7 +49,7 @@ defmodule Creek.Stream.Process do
       {:subscribe, from} ->
         log(node, "subscribe from : #{inspect(from)}")
 
-        meta_event = create_meta_event(:subscribe, node, from, state, ds, [])
+        meta_event = create_meta_event(:subscribe, node, from, state, ds, [], nil)
         meta_response = try_meta(meta_event, node)
 
         {state, _us, ds} =
@@ -78,10 +80,10 @@ defmodule Creek.Stream.Process do
       {:tick, from} ->
         log(node, "tick")
 
-        meta_event = create_meta_event(:tick, node, from, state, ds, [])
+        meta_event = create_meta_event(:tick, node, from, state, ds, [], nil)
         meta_response = try_meta(meta_event, node)
 
-        {state, us, ds} =
+        {state, _us, ds} =
           case meta_response do
             # Base behaviour in case of no meta.
             :ignore ->
@@ -173,7 +175,7 @@ defmodule Creek.Stream.Process do
       {:next, value, from} ->
         log(node, "next #{inspect(value)} from #{inspect(from)}")
 
-        meta_event = create_meta_event(:next, node, from, state, ds, us, value)
+        meta_event = create_meta_event(:next, node, from, state, ds, us, nil, value)
         meta_response = try_meta(meta_event, node)
 
         {state, us, ds} =
@@ -204,7 +206,7 @@ defmodule Creek.Stream.Process do
 
       {:complete, from} ->
         log(node, "complete from #{inspect(from)} (#{Enum.count(us)} upstreams)")
-        meta_event = create_meta_event(:complete, node, from, state, ds, us)
+        meta_event = create_meta_event(:complete, node, from, state, ds, us, nil)
         meta_response = try_meta(meta_event, node)
 
         {state, us, ds} =
@@ -292,46 +294,86 @@ defmodule Creek.Stream.Process do
 
       {:subscribe, from} ->
         log(node, "subscribe from : #{inspect(from)}")
-        for u <- us, do: send(u, {:subscribe, self()})
+        meta_event = create_meta_event(:subscribe, node, from, state, ds, us, nil)
+        meta_response = try_meta(meta_event, node)
+
+        {state, us, ds} =
+          case meta_response do
+            # Default behaviour
+            :ignore ->
+              for u <- us, do: send(u, {:subscribe, self()})
+              {state, us, ds}
+
+            # Meta handled the call.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
+
         sloop(node, ivar, source, state, ds, us)
 
       {:next, value, from} ->
         log(node, "next #{inspect(value)} from #{inspect(from)}")
-        this = %{}
+        meta_event = create_meta_event(:next, node, from, state, ds, us, ivar, value)
+        meta_response = try_meta(meta_event, node)
 
-        {state, response} = node.next.(this, state, from, value)
+        {state, us, ds} =
+          case meta_response do
+            # Default behaviour
+            :ignore ->
+              this = %{}
 
-        case response do
-          {:next, value} ->
-            for d <- ds, do: send(d, {:next, value, self()})
+              {state, response} = node.next.(this, state, from, value)
 
-          :skip ->
-            :ok
+              case response do
+                {:next, value} ->
+                  for d <- ds, do: send(d, {:next, value, self()})
 
-          {:yield, value} ->
-            Ivar.put(ivar, value)
-            send(self(), {:dispose, self()})
-            for d <- ds, do: send(d, {:complete, self()})
-        end
+                :skip ->
+                  :ok
+
+                {:yield, value} ->
+                  Ivar.put(ivar, value)
+                  send(self(), {:dispose, self()})
+                  for d <- ds, do: send(d, {:complete, self()})
+              end
+
+              {state, us, ds}
+
+            # Meta handled the call.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
 
         sloop(node, ivar, source, state, ds, us)
 
       {:complete, from} ->
         log(node, "complete from #{inspect(from)}")
-        this = %{}
-        {state, response} = node.complete.(this, state)
+        meta_event = create_meta_event(:complete, node, from, state, ds, us, ivar)
+        meta_response = try_meta(meta_event, node)
 
-        case response do
-          {:complete, _state} ->
-            send(self(), {:dispose, self()})
-            for d <- ds, do: send(d, {:complete, self()})
+        {state, us, ds} =
+          case meta_response do
+            :ignore ->
+              this = %{}
+              {state, response} = node.complete.(this, state)
 
-          {:yield, value} ->
-            log(node, "Putting value #{inspect(value)} in ivar")
-            Ivar.put(ivar, value)
-            send(self(), {:dispose, self()})
-            for d <- ds, do: send(d, {:complete, self()})
-        end
+              case response do
+                {:complete, _state} ->
+                  send(self(), {:dispose, self()})
+                  for d <- ds, do: send(d, {:complete, self()})
+
+                {:yield, value} ->
+                  log(node, "Putting value #{inspect(value)} in ivar")
+                  Ivar.put(ivar, value)
+                  send(self(), {:dispose, self()})
+                  for d <- ds, do: send(d, {:complete, self()})
+              end
+
+              {state, us, ds}
+
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
 
         sloop(node, ivar, source, state, ds, us)
 

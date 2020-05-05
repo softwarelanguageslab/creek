@@ -1,6 +1,7 @@
 defmodule Creek.Node.Source.Single do
   def tick(_this, state) do
     if state != nil do
+      Process.sleep(50)
       value = state
       {nil, {:next, value}}
     else

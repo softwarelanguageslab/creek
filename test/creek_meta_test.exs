@@ -1,6 +1,6 @@
-defmodule CreekTest do
-  import Creek.{Wiring, Stream, Node}
-
+defmodule CreekTestMeta do
+  import Creek.{Wiring, Stream, Node, Meta}
+  alias Creek.Meta.Default
   use ExUnit.Case
 
   # doctest Creek
@@ -37,9 +37,9 @@ defmodule CreekTest do
   # Source
 
   test "single" do
-    dag = single(0)
+    dag = single(0) |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -49,9 +49,9 @@ defmodule CreekTest do
   end
 
   test "from_list" do
-    dag = from_list([1, 2, 3, 4, 5, 6])
+    dag = from_list([1, 2, 3, 4, 5, 6]) |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -64,9 +64,9 @@ defmodule CreekTest do
   # Mergeg dag
 
   test "map two upstreams" do
-    dag = [single(0), single(0)] ~>> map(fn x -> x + 1 end)
+    dag = [single(0), single(0)] ~>> map(fn x -> x + 1 end) |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -82,8 +82,9 @@ defmodule CreekTest do
     dag =
       single(0)
       ~> map(fn x -> x + 1 end)
+      |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -97,8 +98,9 @@ defmodule CreekTest do
       single(0)
       ~> map(fn x -> x + 1 end)
       ~> map(fn x -> x + 1 end)
+      |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -113,8 +115,9 @@ defmodule CreekTest do
       ~> map(fn _ -> single(0) end)
       ~> flatten()
       ~> map(fn x -> x end)
+      |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -129,8 +132,9 @@ defmodule CreekTest do
       ~> map(fn x -> single(x) end)
       ~> flatten()
       ~> map(fn x -> x end)
+      |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -144,9 +148,9 @@ defmodule CreekTest do
   # Sinks
 
   test "all" do
-    dag = single(0)
+    dag = single(0) |> install(Default)
 
-    stream = run(dag, all())
+    stream = run(dag, all() |> install(Default))
 
     result = get(stream)
 
@@ -156,9 +160,9 @@ defmodule CreekTest do
   end
 
   test "head" do
-    dag = single(0)
+    dag = single(0) |> install(Default)
 
-    stream = run(dag, head())
+    stream = run(dag, head() |> install(Default))
 
     result = get(stream)
 
@@ -168,21 +172,21 @@ defmodule CreekTest do
   end
 
   test "fanout 1 branch" do
-    dag = single(0)
-    stream = run(dag, fanout())
+    dag = single(0) |> install(Default)
+    stream = run(dag, fanout() |> install(Default))
 
-    left = extend(stream, map(fn x -> x end), head())
+    left = extend(stream, map(fn x -> x end), head() |> install(Default))
     assert 0 == get(left)
 
     assert_torn_down(left)
   end
 
   test "fanout 2 branches" do
-    dag = single(0)
-    stream = run(dag, fanout())
+    dag = single(0) |> install(Default)
+    stream = run(dag, fanout() |> install(Default))
 
-    left = extend(stream, map(fn x -> x end), head())
-    right = extend(stream, map(fn x -> x end), head())
+    left = extend(stream, map(fn x -> x end), head() |> install(Default))
+    right = extend(stream, map(fn x -> x end), head() |> install(Default))
 
     assert 0 = get(left)
     assert 0 == get(right)
@@ -194,12 +198,12 @@ defmodule CreekTest do
 
   test "fanout 3 branches" do
     # For this test we assume it's fair that the single has a small delay to ensure the complet message is propagated on time.
-    dag = single(0)
-    stream = run(dag, fanout())
+    dag = single(0) |> install(Default)
+    stream = run(dag, fanout() |> install(Default))
 
-    left = extend(stream, map(fn x -> x end), head())
-    middle = extend(stream, map(fn x -> x end), all())
-    right = extend(stream, map(fn x -> x end), head())
+    left = extend(stream, map(fn x -> x end), head() |> install(Default))
+    middle = extend(stream, map(fn x -> x end), all() |> install(Default))
+    right = extend(stream, map(fn x -> x end), head() |> install(Default))
 
     assert 0 = get(left)
     assert [0] = get(middle)
