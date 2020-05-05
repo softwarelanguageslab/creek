@@ -192,7 +192,6 @@ defmodule CreekTest do
     assert_torn_down(right)
   end
 
-
   test "fanout 3 branches" do
     # For this test we assume it's fair that the single has a small delay to ensure the complet message is propagated on time.
     dag = single(0)

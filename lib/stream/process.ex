@@ -3,14 +3,26 @@ defmodule Creek.Stream.Process do
   import Creek.{Wiring, Node, Stream}
 
   def log(node, message) do
-    #Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
+    # Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
   end
 
   # -----------------------------------------------------------------------------
   # Meta Helpers
 
-  def create_meta_event(event, node, from, state, downstream, upstream) do
-    %{event: event, node: node, from: from, downstream: downstream, upstream: upstream, base: self(), state: state}
+  def create_meta_event(event, node, from, state, downstream, upstream, payload \\ nil) do
+    base = %{node: node, ref: self(), state: state}
+    %{event: event, base: base, from: from, downstream: downstream, upstream: upstream, payload: payload}
+  end
+
+  def try_meta(event, node) do
+    if node.meta do
+      single(event)
+      ~> node.meta
+      |> run(head())
+      |> get()
+    else
+      :ignore
+    end
   end
 
   # -----------------------------------------------------------------------------
@@ -34,56 +46,72 @@ defmodule Creek.Stream.Process do
 
       {:subscribe, from} ->
         log(node, "subscribe from : #{inspect(from)}")
-        # Unused in the streams for now.
-        state =
-          if node.meta do
-            meta_event = create_meta_event(:subscribe, node, from, state, ds, [])
 
-              single(meta_event)
-              ~> node.meta
-              |> run(head())
-              |> get()
-          else
-            this = %{}
-            {state, response} = node.subscribe.(this, state, from)
+        meta_event = create_meta_event(:subscribe, node, from, state, ds, [])
+        meta_response = try_meta(meta_event, node)
 
-            case response do
-              :continue ->
-                send(self(), :tick)
-                :ok
+        {state, _us, ds} =
+          case meta_response do
+            # Default behaviour
+            :ignore ->
+              this = %{}
+              {state, response} = node.subscribe.(this, state, from)
 
-              _ ->
-                Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
-            end
+              case response do
+                :continue ->
+                  send(self(), {:tick, self()})
+                  :ok
 
-            state
+                _ ->
+                  Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
+              end
+
+              {state, [], ds}
+
+            # There was a meta-response
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
+
+        srloop(node, state, ds)
+
+      {:tick, from} ->
+        log(node, "tick")
+
+        meta_event = create_meta_event(:tick, node, from, state, ds, [])
+        meta_response = try_meta(meta_event, node)
+
+        {state, us, ds} =
+          case meta_response do
+            # Base behaviour in case of no meta.
+            :ignore ->
+              this = %{}
+              {state, response} = node.tick.(this, state)
+
+              case response do
+                {:next, value} ->
+                  send(self(), {:tick, self()})
+                  for d <- ds, do: send(d, {:next, value, self()})
+
+                :complete ->
+                  for d <- ds, do: send(d, {:complete, self()})
+                  send(self(), {:dispose, self()})
+
+                _ ->
+                  Logger.error("Source callback tick/2 produced invalid returnvalue: #{inspect(response)}")
+              end
+
+              {state, [], ds}
+
+            # There was a meta-response.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
           end
 
         srloop(node, state, ds)
 
       # -------------------------------------------------------------------------
       # Management protocol.
-
-      :tick ->
-        log(node, "tick")
-        # Unused in the streams for now.
-        this = %{}
-        {state, response} = node.tick.(this, state)
-
-        case response do
-          {:next, value} ->
-            send(self(), :tick)
-            for d <- ds, do: send(d, {:next, value, self()})
-
-          :complete ->
-            for d <- ds, do: send(d, {:complete, self()})
-            send(self(), {:dispose, self()})
-
-          _ ->
-            Logger.error("Source callback tick/2 produced invalid returnvalue: #{inspect(response)}")
-        end
-
-        srloop(node, state, ds)
 
       {:dispose, from} ->
         log(node, "dispose from #{inspect(from)}")
@@ -95,7 +123,7 @@ defmodule Creek.Stream.Process do
         :stop
 
       m ->
-        IO.puts("Source did not understand: #{inspect(m)}")
+        IO.puts("#{inspect(self())} Source did not understand: #{inspect(m)}")
     end
   end
 
@@ -124,56 +152,95 @@ defmodule Creek.Stream.Process do
 
       # Operators just send the subscribe upstream.
       {:subscribe, from} ->
-        log(node, "subscribe from : #{inspect(from)}")
-        for u <- us, do: send(u, {:subscribe, self()})
+        meta_event = create_meta_event(:subscribe, node, from, state, ds, us, nil)
+        meta_response = try_meta(meta_event, node)
+
+        {state, us, ds} =
+          case meta_response do
+            # Default behaviour
+            :ignore ->
+              log(node, "subscribe from : #{inspect(from)}")
+              for u <- us, do: send(u, {:subscribe, self()})
+              # ploop(node, state, ds, us)
+              {state, us, ds}
+
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
+
         ploop(node, state, ds, us)
 
       {:next, value, from} ->
         log(node, "next #{inspect(value)} from #{inspect(from)}")
-        this = %{arg: node.argument, downstream: Enum.to_list(ds)}
-        {state, response} = node.next.(this, state, from, value)
 
-        case response do
-          {:next, value} ->
-            for d <- ds, do: send(d, {:next, value, self()})
+        meta_event = create_meta_event(:next, node, from, state, ds, us, value)
+        meta_response = try_meta(meta_event, node)
 
-          :skip ->
-            :ok
+        {state, us, ds} =
+          case meta_response do
+            :ignore ->
+              this = %{arg: node.argument, downstream: Enum.to_list(ds)}
+              {state, response} = node.next.(this, state, from, value)
 
-          _ ->
-            Logger.error(
-              "#{inspect(self())} Operator callback subscribe/3 produced invalid returnvalue: #{inspect(response)}"
-            )
-        end
+              case response do
+                {:next, value} ->
+                  for d <- ds, do: send(d, {:next, value, self()})
+
+                :skip ->
+                  :ok
+
+                _ ->
+                  Logger.error("#{inspect(self())} Operator callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
+              end
+
+              {state, us, ds}
+
+            # There was a meta-level response.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
 
         ploop(node, state, ds, us)
 
       {:complete, from} ->
         log(node, "complete from #{inspect(from)} (#{Enum.count(us)} upstreams)")
+        meta_event = create_meta_event(:complete, node, from, state, ds, us)
+        meta_response = try_meta(meta_event, node)
 
-        # We only call the complete callback when all upstreams completed.
-        if Enum.count(us) == 1 do
-          this = %{}
-          {state, response} = node.complete.(this, state)
+        {state, us, ds} =
+          case meta_response do
+            :ignore ->
+              # We only call the complete callback when all upstreams completed.
+              if Enum.count(us) == 1 do
+                this = %{}
+                {state, response} = node.complete.(this, state)
 
-          case response do
-            :complete ->
-              for d <- ds, do: send(d, {:complete, self()})
-              :ok
+                case response do
+                  :complete ->
+                    for d <- ds, do: send(d, {:complete, self()})
+                    :ok
 
-            _ ->
-              Logger.error("Operator callback complete/3 produced invalid returnvalue: #{inspect(response)}")
+                  _ ->
+                    Logger.error("Operator callback complete/3 produced invalid returnvalue: #{inspect(response)}")
+                end
+
+                # Remove the stream from our upstream and send it the dispose signal.
+                send(from, {:dispose, self()})
+                us = MapSet.delete(us, from)
+                {state, us, ds}
+                # ploop(node, state, ds, us)
+              else
+                send(from, {:dispose, self()})
+                us = MapSet.delete(us, from)
+                {state, us, ds}
+                # ploop(node, state, ds, us)
+              end
+
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
           end
 
-          # Remove the stream from our upstream and send it the dispose signal.
-          send(from, {:dispose, self()})
-          us = MapSet.delete(us, from)
-          ploop(node, state, ds, us)
-        else
-          send(from, {:dispose, self()})
-          us = MapSet.delete(us, from)
-          ploop(node, state, ds, us)
-        end
+        ploop(node, state, ds, us)
 
       # -------------------------------------------------------------------------
       # Management protocol.
@@ -196,7 +263,7 @@ defmodule Creek.Stream.Process do
         :stop
 
       m ->
-        IO.puts("Process did not understand: #{inspect(m)}")
+        IO.puts("#{inspect(self())} Process did not understand: #{inspect(m)}")
         ploop(node, state, ds, us)
     end
   end
@@ -284,7 +351,7 @@ defmodule Creek.Stream.Process do
         :stop
 
       m ->
-        IO.puts("Sink did not understand: #{inspect(m)}")
+        IO.puts("#{inspect(self())} Sink did not understand: #{inspect(m)}")
         sloop(node, ivar, source, state, [], [])
     end
   end
