@@ -1,4 +1,4 @@
-defmodule Creek.Meta.Default do
+defmodule Creek.Meta.Pull do
   require Logger
   import Creek.{Node}
 
@@ -24,7 +24,7 @@ defmodule Creek.Meta.Default do
           # The base must stop or continue in the tick callback.
           case response do
             :continue ->
-              send(base.ref, {:tick, base.ref})
+              # send(base.ref, {:tick, base.ref})
               :ok
 
             _ ->
@@ -34,7 +34,7 @@ defmodule Creek.Meta.Default do
           # The return value from the meta-layer is the state.
           {:ok, {state, upstream, downstream}}
 
-        # -----------------------------------------------------------------------
+        # -------------------------------\stx----------------------------------------
         :tick ->
           this = %{}
           # Call the base-level tick method.
@@ -42,7 +42,7 @@ defmodule Creek.Meta.Default do
 
           case response do
             {:next, value} ->
-              send(base.ref, {:tick, base.ref})
+              # send(base.ref, {:tick, base.ref})
               for d <- downstream, do: send(d, {:next, value, base.ref})
 
             :complete ->
@@ -56,9 +56,15 @@ defmodule Creek.Meta.Default do
           {:ok, {state, upstream, downstream}}
 
         # -----------------------------------------------------------------------
+        :demand ->
+          send(base.ref, {:tick, base.ref})
+          {:ok, {base.state, upstream, downstream}}
+
+        # -----------------------------------------------------------------------
         # If the meta-layer doesn't want to handle a type of event it just ignores it
         # and the interpreter will handle it with the default behaviour.
         _ ->
+          IO.puts("Unhandled meta-event in source: `#{inspect(event)}`")
           :ignore
       end
     end)
@@ -132,7 +138,15 @@ defmodule Creek.Meta.Default do
             # ploop(node, state, ds, us)
           end
 
+        # -----------------------------------------------------------------------
+        :demand ->
+          for u <- upstream, do: send(u, {:meta, {:demand, payload}, base.ref})
+          {:ok, {base.state, upstream, downstream}}
+
+        # -----------------------------------------------------------------------
+
         _ ->
+          IO.puts("Unhandled meta event in operator: `#{inspect(event)}`")
           :ignore
       end
     end)
@@ -143,6 +157,7 @@ defmodule Creek.Meta.Default do
       case event do
         :subscribe ->
           for u <- upstream, do: send(u, {:subscribe, base.ref})
+          for u <- upstream, do: send(u, {:meta, {:demand, 1}, self()})
           {:ok, {base.state, upstream, downstream}}
 
         :next ->
@@ -162,6 +177,8 @@ defmodule Creek.Meta.Default do
               for d <- downstream, do: send(d, {:complete, base.ref})
           end
 
+          # Send demand.
+          for u <- upstream, do: send(u, {:meta, {:demand, 1}, base.ref})
           {:ok, {state, upstream, downstream}}
 
         :complete ->
@@ -181,7 +198,15 @@ defmodule Creek.Meta.Default do
 
           {:ok, {state, upstream, downstream}}
 
+        # -----------------------------------------------------------------------
+        :demand ->
+          for u <- upstream, do: send(u, {:meta, {:demand, payload}, base.ref})
+          {:ok, {base.state, upstream, downstream}}
+
+        # -----------------------------------------------------------------------
+
         _ ->
+          IO.puts("Unhandled meta-event in sink: `#{inspect(event)}`")
           :ignore
       end
     end)

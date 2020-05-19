@@ -8,6 +8,10 @@ defmodule Creek.Stream.Process do
     end
   end
 
+  def logf(node, message) do
+    Logger.debug("#{inspect(self())} - #{node.name |> String.pad_trailing(10)}: #{message}")
+  end
+
   # -----------------------------------------------------------------------------
   # Meta Helpers
 
@@ -27,7 +31,7 @@ defmodule Creek.Stream.Process do
     end
   end
 
-  # -----------------------------------------------------------------------------
+  ###############################################################################
   # Source
 
   def source(node, state, ds) do
@@ -41,7 +45,35 @@ defmodule Creek.Stream.Process do
 
       {:add_downstream, d} ->
         log(node, "add downstream: #{inspect(d)}")
-        srloop(node, state, MapSet.put(ds, d))
+        meta_event = create_meta_event(:add_downstream, node, d, state, ds, MapSet.new(), nil)
+        meta_response = try_meta(meta_event, node)
+
+        {state, _us, ds} =
+          case meta_response do
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+
+            :ignore ->
+              {state, MapSet.new(), MapSet.put(ds, d)}
+          end
+
+        srloop(node, state, ds)
+
+      # -------------------------------------------------------------------------
+      # Meta only.
+      {:meta, {m, payload}, from} ->
+        log(node, "meta event from : #{inspect(from)}")
+        meta_event = create_meta_event(m, node, from, state, ds, MapSet.new(), payload)
+        meta_response = try_meta(meta_event, node)
+
+        {state, _us, ds} =
+          case meta_response do
+            # Meta-only events must return state.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
+
+        srloop(node, state, ds)
 
       # -------------------------------------------------------------------------
       # Base protocol.
@@ -49,7 +81,7 @@ defmodule Creek.Stream.Process do
       {:subscribe, from} ->
         log(node, "subscribe from : #{inspect(from)}")
 
-        meta_event = create_meta_event(:subscribe, node, from, state, ds, [], nil)
+        meta_event = create_meta_event(:subscribe, node, from, state, ds, MapSet.new(), nil)
         meta_response = try_meta(meta_event, node)
 
         {state, _us, ds} =
@@ -68,7 +100,7 @@ defmodule Creek.Stream.Process do
                   Logger.error("Source callback subscribe/3 produced invalid returnvalue: #{inspect(response)}")
               end
 
-              {state, [], ds}
+              {state, MapSet.new(), ds}
 
             # There was a meta-response
             {:ok, {state, us, ds}} ->
@@ -80,7 +112,7 @@ defmodule Creek.Stream.Process do
       {:tick, from} ->
         log(node, "tick")
 
-        meta_event = create_meta_event(:tick, node, from, state, ds, [], nil)
+        meta_event = create_meta_event(:tick, node, from, state, ds, MapSet.new(), nil)
         meta_response = try_meta(meta_event, node)
 
         {state, _us, ds} =
@@ -103,7 +135,7 @@ defmodule Creek.Stream.Process do
                   Logger.error("Source callback tick/2 produced invalid returnvalue: #{inspect(response)}")
               end
 
-              {state, [], ds}
+              {state, MapSet.new(), ds}
 
             # There was a meta-response.
             {:ok, {state, us, ds}} ->
@@ -117,7 +149,19 @@ defmodule Creek.Stream.Process do
 
       {:dispose, from} ->
         log(node, "dispose from #{inspect(from)}")
-        send(self(), :stop)
+        meta_event = create_meta_event(:dispose, node, from, state, ds, MapSet.new(), nil)
+        meta_response = try_meta(meta_event, node)
+
+        {state, _us, ds} =
+          case meta_response do
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+
+            :ignore ->
+              send(self(), :stop)
+              {state, MapSet.new(), ds}
+          end
+
         srloop(node, state, ds)
 
       :stop ->
@@ -129,7 +173,9 @@ defmodule Creek.Stream.Process do
     end
   end
 
-  # -----------------------------------------------------------------------------
+  ###############################################################################
+  ###############################################################################
+  ###############################################################################
   # Process
 
   def process(node, state, ds, us) do
@@ -143,11 +189,51 @@ defmodule Creek.Stream.Process do
 
       {:add_downstream, d} ->
         log(node, "add downstream: #{inspect(d)}")
-        ploop(node, state, MapSet.put(ds, d), us)
+        meta_event = create_meta_event(:add_downstream, node, d, state, ds, us, nil)
+        meta_response = try_meta(meta_event, node)
+
+        {state, us, ds} =
+          case meta_response do
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+
+            :ignore ->
+              {state, us, MapSet.put(ds, d)}
+          end
+
+        ploop(node, state, ds, us)
 
       {:add_upstream, u} ->
         log(node, "add upstream #{inspect(u)}")
-        ploop(node, state, ds, MapSet.put(us, u))
+        meta_event = create_meta_event(:add_upstream, node, u, state, ds, us, nil)
+        meta_response = try_meta(meta_event, node)
+
+        {state, us, ds} =
+          case meta_response do
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+
+            :ignore ->
+              {state, MapSet.put(us, u), ds}
+          end
+
+        ploop(node, state, ds, us)
+
+      # -------------------------------------------------------------------------
+      # Meta only.
+      {:meta, {m, payload}, from} ->
+        log(node, "meta event from : #{inspect(from)}")
+        meta_event = create_meta_event(m, node, from, state, ds, us, payload)
+        meta_response = try_meta(meta_event, node)
+
+        {state, us, ds} =
+          case meta_response do
+            # Meta-only events must return state.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
+
+        ploop(node, state, ds, us)
 
       # -------------------------------------------------------------------------
       # Base protocol.
@@ -249,14 +335,26 @@ defmodule Creek.Stream.Process do
 
       {:dispose, from} ->
         log(node, "dispose from #{inspect(from)}")
-        # If we dispose ourselves we must do so.
-        # If the dispose is from downstream we ignore it if we have other downstreams.
-        if from == self() or Enum.count(ds) == 1 do
-          # Let our upstream know to dispose.
-          for u <- us, do: send(u, {:dispose, self()})
+        meta_event = create_meta_event(:dispose, node, from, state, ds, MapSet.new(), nil)
+        meta_response = try_meta(meta_event, node)
 
-          send(self(), :stop)
-        end
+        {state, us, ds} =
+          case meta_response do
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+
+            :ignore ->
+              # If we dispose ourselves we must do so.
+              # If the dispose is from downstream we ignore it if we have other downstreams.
+              if from == self() or Enum.count(ds) == 1 do
+                # Let our upstream know to dispose.
+                for u <- us, do: send(u, {:dispose, self()})
+
+                send(self(), :stop)
+              end
+
+              {state, us, ds}
+          end
 
         ploop(node, state, ds, us)
 
@@ -270,7 +368,9 @@ defmodule Creek.Stream.Process do
     end
   end
 
-  # -----------------------------------------------------------------------------
+  ###############################################################################
+  ###############################################################################
+  ###############################################################################
   # Sinks
 
   def sink(node, ivar, source) do
@@ -290,8 +390,23 @@ defmodule Creek.Stream.Process do
         sloop(node, ivar, source, state, ds, MapSet.put(us, u))
 
       # -------------------------------------------------------------------------
-      # Base protocol.
+      # Meta only.
+      {:meta, {m, payload}, from} ->
+        log(node, "meta event from : #{inspect(from)}")
+        meta_event = create_meta_event(m, node, from, state, ds, us, payload)
+        meta_response = try_meta(meta_event, node)
 
+        {state, us, ds} =
+          case meta_response do
+            # Meta-only events must return state.
+            {:ok, {state, us, ds}} ->
+              {state, us, ds}
+          end
+
+        sloop(node, ivar, source, state, ds, us)
+
+      # -------------------------------------------------------------------------
+      # Base protocol.
       {:subscribe, from} ->
         log(node, "subscribe from : #{inspect(from)}")
         meta_event = create_meta_event(:subscribe, node, from, state, ds, us, nil)
@@ -394,7 +509,7 @@ defmodule Creek.Stream.Process do
 
       m ->
         IO.puts("#{inspect(self())} Sink did not understand: #{inspect(m)}")
-        sloop(node, ivar, source, state, [], [])
+        sloop(node, ivar, source, state, MapSet.new(), MapSet.new())
     end
   end
 end
