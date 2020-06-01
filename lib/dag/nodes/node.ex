@@ -35,6 +35,21 @@ defmodule Creek.Node do
   # -----------------------------------------------------------------------------
   # Operator
 
+  def scan(init, f) do
+    %{
+      :tag => make_ref(),
+      :type => :operator,
+      :name => "filter",
+      :argument => f,
+      :in => 1,
+      :out => 1,
+      :next => &Creek.Node.Operator.Scan.next/4,
+      :complete => &Creek.Node.Operator.Scan.complete/2,
+      :meta => nil,
+      :state => init
+    }
+  end
+
   def filter(f) do
     %{
       :tag => make_ref(),

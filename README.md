@@ -1,21 +1,8 @@
 # Creek
 
-**TODO: Add description**
+## Remarks
 
-## Installation
+	* Slack 29/5/2020 11PM:
+	  Een fanout is eigenlijk een operator die een meta-message add-subscriber verstaat 
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `creek` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:creek, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/creek](https://hexdocs.pm/creek).
-
+	* Parallel operator implementeren
