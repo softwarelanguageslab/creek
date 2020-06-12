@@ -7,13 +7,13 @@ defmodule Creek.Meta.Logging do
       case event do
         # -----------------------------------------------------------------------
         :dispose ->
-          IO.puts "Meta: Source received dispose event"
+          IO.puts("Meta: Source received dispose event")
           send(base.ref, :stop)
           {:ok, {base.state, upstream, downstream}}
 
         # -----------------------------------------------------------------------
         :subscribe ->
-          IO.puts "Meta: Source received subscribe event"
+          IO.puts("Meta: Source received subscribe event")
           this = %{}
           # Call the base-level subscribe method.
           {state, response} = base.node.subscribe.(this, base.state, from)
@@ -34,7 +34,7 @@ defmodule Creek.Meta.Logging do
 
         # -----------------------------------------------------------------------
         :tick ->
-          IO.puts "Meta: Source received tick event"
+          IO.puts("Meta: Source received tick event")
           this = %{}
           # Call the base-level tick method.
           {state, response} = base.node.tick.(this, base.state)
@@ -66,23 +66,22 @@ defmodule Creek.Meta.Logging do
   def operator() do
     map(fn %{event: event, base: base, from: from, downstream: downstream, upstream: upstream, payload: payload} ->
       case event do
-
         # -----------------------------------------------------------------------
         :dispose ->
-          IO.puts "Operator got dispose event."
+          IO.puts("Operator got dispose event.")
           send(base.ref, :stop)
           {:ok, {base.state, upstream, downstream}}
 
         # -----------------------------------------------------------------------
         :subscribe ->
-          IO.puts "Operator got susbcribe event."
+          IO.puts("Operator got susbcribe event.")
           for u <- upstream, do: send(u, {:subscribe, base.ref})
           # ploop(node, state, ds, us)
           {:ok, {base.state, upstream, downstream}}
 
         # -----------------------------------------------------------------------
         :next ->
-          IO.puts "Operator got value: #{payload}"
+          IO.puts("Operator got value: #{payload}")
           this = %{arg: base.node.argument, downstream: Enum.to_list(downstream)}
           {state, response} = base.node.next.(this, base.state, from, payload)
 
@@ -101,7 +100,7 @@ defmodule Creek.Meta.Logging do
 
         # -----------------------------------------------------------------------
         :complete ->
-          IO.puts "Operator got complete"
+          IO.puts("Operator got complete")
           # We only call the complete callback when all upstreams completed.
           if Enum.count(upstream) == 1 do
             this = %{}

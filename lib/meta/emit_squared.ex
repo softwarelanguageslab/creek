@@ -110,8 +110,6 @@ defmodule Creek.Meta.Squared do
             {:ok, {state, upstream, downstream}}
           end
 
-
-
         # -----------------------------------------------------------------------
         :complete ->
           # We only call the complete callback when all upstreams completed.

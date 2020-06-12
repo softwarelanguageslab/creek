@@ -26,3 +26,16 @@
 
 	* Nadenken over de primitieve communicatie concepten
 	  -> tick/tock? 
+
+
+## Notes
+
+ * Ik denk niet dat operator fusion kan uitgedrukt worden op deze manier.
+   Dat is iets dat in een imperatieve manier moet uitgedrukt worden?
+ * Stel dat we enkel next events willen afhandelen, hoe gaan we duidelijk maken aan de runtime dat we de rest "negeren"?
+
+## DIrectFlow 
+
+ * Alles zit op 1 thread 
+ * Componenten hebben fixed in/outs.
+ * Segmenten van een pipe kunnen op 1 thread bollen (VAT wat wolf voorstelde)
