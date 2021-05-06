@@ -25,8 +25,8 @@ defmodule Creek.Source do
     end)
   end
 
-  def range(a, b) do
-    o = %Operator{type: :source, arg: {a, b}, name: "range", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Range}
+  def range(a, b, stepsize \\ 1) do
+    o = %Operator{type: :source, arg: {a, b, stepsize}, name: "range", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Range}
 
     spawn(fn ->
       Creek.Runtime.Process.source(o, [])

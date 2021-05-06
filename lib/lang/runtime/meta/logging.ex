@@ -26,8 +26,9 @@ defmodule Logging do
                          case result do
                            {p, {state, :next, value}} ->
                              IO.puts("#{p.node.name} outgoing: #{inspect(value)}")
-                             _ ->
-                               :ok
+
+                           _ ->
+                             :ok
                          end
 
                          result
@@ -36,9 +37,9 @@ defmodule Logging do
 
   # Source
 
-  fragment source_tick as filter(&(match?({p, :tick}, &1)))
+  fragment source_tick as filter(&match?({p, :tick}, &1))
                           ~> map(fn {p, :tick} ->
-                            IO.puts "Source signaled to produce!"
+                            IO.puts("Source signaled to produce!")
                             {p, :tick}
                           end)
                           ~> base
@@ -46,9 +47,11 @@ defmodule Logging do
                             case result do
                               {p, {state, :next, value}} ->
                                 IO.puts("Source outgoing: #{inspect(value)}")
+
                               _ ->
                                 :ok
                             end
+
                             result
                           end)
                           ~> effects

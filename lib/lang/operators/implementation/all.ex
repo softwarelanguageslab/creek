@@ -1,7 +1,6 @@
 defmodule Creek.Sink.All do
   def next(_this, {ivar, state}, _from, value) do
     # Process.sleep(3000)
-    IO.inspect(value)
     new_state = state ++ [value]
     {{ivar, new_state}, :ok}
   end

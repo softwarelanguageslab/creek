@@ -146,7 +146,6 @@ defmodule Creek.DSL do
             raise "DAG #{name} is not closed!"
           end
 
-
           result =
             if alias!(Meta) == :metadag do
               compiled_dag =
@@ -233,6 +232,7 @@ defmodule Creek.DSL do
   def ensure_closed(%GatedDag{} = gdag) do
     GatedDag.dangling_inputs(gdag) == [] and GatedDag.dangling_outputs(gdag) == []
   end
+
   @doc """
   Given a GatedDag representing a stream, remaps each actorentry to either a source or a sink, depending on where it's located in the dag.
   """

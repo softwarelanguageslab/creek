@@ -40,7 +40,7 @@ defmodule Creek.Small do
     Creek.ExampleRtm.main()
     IO.puts("Creek.ExampleRtmLogging.main()")
     Creek.ExampleRtmLogging.main()
-    IO.puts "Creek.ExampleCtmPar.main()"
-    Creek.ExampleCtmPar.main
+    IO.puts("Creek.ExampleCtmPar.main()")
+    Creek.ExampleCtmPar.main()
   end
 end
