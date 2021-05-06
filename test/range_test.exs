@@ -6,7 +6,7 @@ defmodule CreekTest.Program do
   end
 
   def main() do
-    source = Creek.Source.range(0, 1001, 100)
+    source = Creek.Source.range(0, 1000, 100)
     ivar = Ivar.new()
     sink = Creek.Sink.all(ivar)
     Creek.Runtime.run(test(), [src: source, snk: sink], dot: true)

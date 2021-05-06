@@ -3,7 +3,7 @@ defmodule Creek.Source.Range do
     # Process.sleep(:rand.uniform(10000))
     {a, b, stepsize} = state
 
-    if b == :infinity or a < b do
+    if b == :infinity or a <= b do
       {{a + stepsize, b, stepsize}, :tick, a}
     else
       {state, :complete}
