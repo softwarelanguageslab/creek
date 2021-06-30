@@ -24,6 +24,18 @@ defmodule Creek.Operator do
     }
   end
 
+  def zipLatest(opts \\ []) do
+    %Operator{
+      type: :operator,
+      arg: %{0 => nil, 1 => nil},
+      name: "zipLatest",
+      ref: Creek.Server.gen_sym(),
+      in: 2,
+      out: 1,
+      impl: Creek.Operator.ZipLatest
+    }
+  end
+
   def fold(proc, init \\ nil) do
     %Operator{
       type: :operator,
