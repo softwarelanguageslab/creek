@@ -114,4 +114,21 @@ defmodule Creek.Operator do
   def ensure_dag(%GatedDag{} = g) do
     g
   end
+
+  #############################################################################
+  # Derived
+
+  def average() do
+    transform({nil, nil}, fn v, {count, sum} ->
+      IO.puts(v)
+
+      if count == nil and sum == nil do
+        {{1, v}, v}
+      else
+        count = count + 1
+        sum = sum + v
+        {{count, sum}, sum / count}
+      end
+    end)
+  end
 end
