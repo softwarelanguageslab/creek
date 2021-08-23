@@ -23,9 +23,9 @@ defmodule Creek.MixProject do
   defp deps do
     [
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
-      {:mutable_graph, git: "ssh://git@gitlab.call-cc.be:2200/research/libmutablegraph.git"},
-      {:gated_dag, git: "ssh://git@gitlab.call-cc.be:2200/research/gated-dag.git", commit: "722db2a"},
-      {:ivar, git: "ssh://git@gitlab.call-cc.be:2200/research/ivar.git", branch: "master"},
+      {:mutable_graph, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/libmutablegraph.git", branch: "master"},
+      {:gated_dag, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/gated-dag.git", branch: "master"},
+      {:ivar, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/Ivar.git", branch: "master"},
       {:benchee, "~> 1.0", only: :dev}
     ]
   end
