@@ -1,0 +1,28 @@
+# YAML 1.2
+---
+authors: 
+  -
+    affiliation: "Vrije Universiteit Brussel, Brussels, Belgium"
+    family-names: "De Troyer"
+    given-names: Christophe
+  -
+    affiliation: "Vrije Universiteit Brussel, Brussels, Belgium"
+    family-names: Nicolay
+    given-names: Jens
+  -
+    affiliation: "Vrije Universiteit Brussel, Brussels, Belgium"  
+    family-names: "De Meuter"
+    given-names: Wolfgang
+cff-version: "1.1.0"
+date-released: 2021-03-27
+doi: "10.22152/programming-journal.org/2022/6/2"
+keywords: 
+  - "stream processing"
+  - "functional programming"
+  - extensibility
+  - "meta-programming"
+  - "library design"
+license: 
+message: "If you use this software, please cite it using these metadata."
+title: "The Art of the Meta Stream Protocol"
+...
