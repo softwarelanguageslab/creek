@@ -1,6 +1,6 @@
 defmodule IdentityMeta do
   use Creek.MetaBehaviour
-  structure(Merge)
+  # structure(Merge)
 
   defdag operator(src, snk) do
     src

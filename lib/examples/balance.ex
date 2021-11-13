@@ -1,18 +1,16 @@
 defmodule Creek.BalanceExample do
   use Creek
-  # meta(Merge)
-  # runtime_meta(Creek.Runtime.Meta.Default)
 
   defdag test(src, snk) do
     src
     ~> balance(2)
     ~> (map(fn x ->
           IO.puts("Left")
-          x
+          {x, :r}
         end) |||
           map(fn x ->
             IO.puts("Right")
-            x
+            {x, :l}
           end))
     ~> merge(2)
     ~> snk

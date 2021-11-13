@@ -1,7 +1,7 @@
 defmodule Creek.Factorial do
   use Creek
   # meta(Merge)
-  # runtime_meta(Creek.Runtime.Meta.Default)
+  execution(IdentityMeta)
 
   defdag test(src, snk) do
     src

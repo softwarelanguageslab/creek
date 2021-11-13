@@ -6,7 +6,18 @@ defmodule Creek.Runtime.Meta.Default do
                       ~> base()
                       ~> effects()
 
-  fragment init_src as filter(&match?({_, :init_src}, &1))
+  fragment init_src as map(fn x ->
+                         IO.inspect(nil, label: "Init source before filter")
+                         x
+                       end)
+                       ~> filter(fn x ->
+                        IO.puts "filtering #{inspect x}: #{Kernel.match?(_, x)}"
+                        Kernel.match?(_, x)
+                       end)
+                       ~> map(fn x ->
+                         IO.inspect(x, label: "Init source made it through filter")
+                         x
+                       end)
                        ~> base()
                        ~> effects()
 
@@ -37,6 +48,10 @@ defmodule Creek.Runtime.Meta.Default do
 
   defdag source(src, snk) do
     src
+    ~> map(fn x ->
+      IO.puts("Meta source event: #{inspect(x)}")
+      x
+    end)
     ~> dup(2)
     ~> (init_src() ||| tick())
     ~> merge(2)

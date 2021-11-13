@@ -10,10 +10,11 @@ defmodule Creek.ExampleCtmPar do
   # Bench with
   fragment mapper as map(
                        fn x ->
+                         IO.puts(x)
                          Process.sleep(1000)
                          x
                        end,
-                       parallel: 3
+                       parallel: 5
                      )
 
   defdag test(src, snk) do

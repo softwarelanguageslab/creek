@@ -36,6 +36,7 @@ defmodule Creek.DSL do
     quote do
       dag = var!(dag)
       dag = GatedDag.add_edge(dag, unquote(a), unquote(agate), unquote(b), unquote(bgate))
+      # dag = GatedDag.add_edge(dag, unquote(b), unquote(bgate), unquote(a), unquote(agate))
       var!(dag) = dag
     end
   end

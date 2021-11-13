@@ -8,43 +8,71 @@ defmodule Parallelize do
                    if Keyword.has_key?(op.opts, :parallel) do
                      factor = Keyword.get(op.opts, :parallel)
 
-                     # Create and insert the duplicate and merge operators (start and end of parallel part).
-                     endng = Creek.Operator.merge(factor)
+                     #    +---+
+                     #    |dup|
+                     #    +---+
+                     #    v   v
+                     # +--++ ++--+
+                     # |map| |map|
+                     # +---+ +---+
+                     #     v v
+                     #    ++-++
+                     #    |mrg|
+                     #    +---+
+                     # The output of the transform must be duplicated factor times.
+                     # After the operations it must also be merged together.
 
-                     start =
+                     # The transform operator will tag each value with an index.
+                     # This is used to balance them across the parallel pipelines.
+                     f1 =
                        Creek.Operator.transform(
                          0,
                          fn x, state ->
                            tag = rem(state + 1, factor)
                            {tag, {tag, x}}
-                         end,
-                         ending: endng.ref
+                         end
                        )
 
-                     dupper = Creek.Operator.dup(factor)
-                     swap!(op, start)
-                     insert(endng)
-                     insert(dupper)
-                     connect(start, 0, dupper, 0)
+                     insert(f1)
+
+                     # The parallel pieplines need to be merged together in the end.
+                     f_n = Creek.Operator.merge(factor, start: f1.ref)
+                     insert(f_n)
+
+                     # The transformed tagged values need to duplicated across
+                     # each pipeline using duplicate.
+                     f2 = Creek.Operator.dup(factor)
+                     insert(f2)
+
+                     # Transform emits to duplicate directly.
+                     connect(f1, 0, f2, 0)
 
                      dag =
                        0..(factor - 1)
                        |> Enum.reduce(dag, fn i, dag ->
-                         f = Creek.Operator.filter(fn {tag, _v} -> tag == i end)
+                         f =
+                           Creek.Operator.filter(fn {tag, v} ->
+                             tag == i
+                           end)
 
                          m =
-                           Creek.Operator.map(fn {tag, value} ->
+                           Creek.Operator.map(fn {_tag, value} ->
+                             Process.sleep(i * 1000)
                              op.arg.(value)
                            end)
 
                          insert(f)
                          insert(m)
+                         # Connect map after filter.
                          connect(f, 0, m, 0)
-                         connect(m, 0, endng, i)
-                         connect(dupper, i, f, 0)
+                         # Each map outputs to the merge.
+                         connect(m, 0, f_n, i)
+                         # Each filter is connected to the duplicator.
+                         connect(f2, i, f, 0)
+                         dag
                        end)
 
-                     {{:operator, start}, dag, it}
+                     {{:operator, f_n}, dag, it}
                    else
                      {{:operator, op}, dag, it}
                    end
@@ -54,10 +82,11 @@ defmodule Parallelize do
                      match?({{:edge, _, _, _, _}, _, _}, event)
                    end)
                    ~> map(fn {{:edge, from, fidx, to, toidx}, dag, it} ->
-                     a = fetch!(from)
+                     b = fetch!(to)
 
-                     if Keyword.has_key?(a.opts, :ending) do
-                       {{:edge, Keyword.get(a.opts, :ending), fidx, to, toidx}, dag, it}
+                     if Keyword.has_key?(b.opts, :start) do
+                       actual_to = Keyword.get(b.opts, :start)
+                       {{:edge, from, fidx, actual_to, toidx}, dag, it}
                      else
                        {{:edge, from, fidx, to, toidx}, dag, it}
                      end
@@ -65,10 +94,6 @@ defmodule Parallelize do
 
   defdag metadag(src, snk) do
     src
-    # ~> map(fn {ev, dag, it} ->
-    #   IO.inspect(ev, label: "event")
-    #   {ev, dag, it}
-    # end)
     ~> dup(3)
     ~> (op ||| edge ||| default_name)
     ~> merge(3)
@@ -76,23 +101,3 @@ defmodule Parallelize do
     ~> snk
   end
 end
-
-#  IO.inspect(balance, label: "balance")
-#  IO.inspect(op, label: "op")
-#  swap!(op, balance)
-#  merge = Creek.Operator.merge(factor)
-#  insert(merge)
-#  IO.inspect(merge, label: "merge")
-#  # Create the operators.
-#  operators = 1..factor |> Enum.map(fn _ -> Creek.Operator.map(op.arg) end)
-#  IO.inspect(operators, label: "operators")
-
-#  # Add the operators to the DAG.
-#  dag =
-#    operators
-#    |> Enum.zip(0..(factor - 1))
-#    |> Enum.reduce(dag, fn {op, i}, dag ->
-#      insert(op)
-#      connect(balance, i, op, 0)
-#      connect(op, 0, merge, i)
-#    end)

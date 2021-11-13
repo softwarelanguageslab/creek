@@ -3,8 +3,8 @@
   "deep_merge": {:hex, :deep_merge, "1.0.0", "b4aa1a0d1acac393bdf38b2291af38cb1d4a52806cf7a4906f718e1feb5ee961", [:mix], [], "hexpm", "ce708e5f094b9cd4e8f2be4f00d2f4250c4095be93f8cd6d018c753894885430"},
   "dialyxir": {:hex, :dialyxir, "1.1.0", "c5aab0d6e71e5522e77beff7ba9e08f8e02bad90dfbeffae60eaf0cb47e29488", [:mix], [{:erlex, ">= 0.2.6", [hex: :erlex, repo: "hexpm", optional: false]}], "hexpm", "07ea8e49c45f15264ebe6d5b93799d4dd56a44036cf42d0ad9c960bc266c0b9a"},
   "erlex": {:hex, :erlex, "0.2.6", "c7987d15e899c7a2f34f5420d2a2ea0d659682c06ac607572df55a43753aa12e", [:mix], [], "hexpm", "2ed2e25711feb44d52b17d2780eabf998452f6efda104877a3881c2f8c0c0c75"},
-  "gated_dag": {:git, "ssh://christophe@call-cc.be:/home/christophe/repositories/gated-dag.git", "d779be1ba21590e6fd3ef577873bdb19e2ca3a7e", [branch: "master"]},
+  "gated_dag": {:git, "ssh://christophe@call-cc.be:/home/christophe/repositories/gated-dag.git", "c052593f1577374f4ecab5a7e993dca2ef72ae2a", [branch: "master"]},
   "ivar": {:git, "ssh://christophe@call-cc.be:/home/christophe/repositories/Ivar.git", "f7b7150c5eb1368a410cc5fe6791d3881e616ffd", [branch: "master"]},
   "libgraph": {:hex, :libgraph, "0.13.3", "20732b7bafb933dcf7351c479e03076ebd14a85fd3202c67a1c197f4f7c2466b", [:mix], [], "hexpm", "78f2576eef615440b46f10060b1de1c86640441422832052686df53dc3c148c6"},
-  "mutable_graph": {:git, "ssh://christophe@call-cc.be:/home/christophe/repositories/libmutablegraph.git", "c9feaeb9ec4a4e11e0cb9e1b26ed1a27aaa8a21a", [branch: "master"]},
+  "mutable_graph": {:git, "ssh://christophe@call-cc.be:/home/christophe/repositories/libmutablegraph.git", "8d7f95a40cf1de5f8dd8bf23b03a39dfeefd2bc0", [branch: "master"]},
 }

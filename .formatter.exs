@@ -1,7 +1,7 @@
 # Used by "mix format"
 [
   inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}"],
-  line_length: 180,
+  line_length: 240,
   locals_without_parens: [
     fragment: 1,
     defdag: 1,

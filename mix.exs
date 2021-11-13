@@ -24,7 +24,9 @@ defmodule Creek.MixProject do
     [
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:mutable_graph, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/libmutablegraph.git", branch: "master"},
+      # {:mutable_graph, path: "/home/christophe/code/libmutablegraph"},
       {:gated_dag, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/gated-dag.git", branch: "master"},
+      # {:gated_dag, path: "/home/christophe/code/gated-dag"},
       {:ivar, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/Ivar.git", branch: "master"},
       {:benchee, "~> 1.0", only: :dev}
     ]
