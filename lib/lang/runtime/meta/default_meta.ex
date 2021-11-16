@@ -11,8 +11,8 @@ defmodule Creek.Runtime.Meta.Default do
                          x
                        end)
                        ~> filter(fn x ->
-                        IO.puts "filtering #{inspect x}: #{Kernel.match?(_, x)}"
-                        Kernel.match?(_, x)
+                         IO.puts("filtering #{inspect(x)}: #{Kernel.match?(_, x)}")
+                         Kernel.match?(_, x)
                        end)
                        ~> map(fn x ->
                          IO.inspect(x, label: "Init source made it through filter")

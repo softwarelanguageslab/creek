@@ -115,33 +115,82 @@ defmodule Creek.DSL do
     end
   end
 
+  defmacro deploy(dagfunc, args, opts) do
+    {f_atom, _, _} = dagfunc
+
+    quote do
+      dict =
+        unquote(args)
+        |> Enum.reduce(%{}, fn {label, value}, dict ->
+          Map.put(dict, label, value)
+        end)
+
+      dag = apply(__MODULE__, unquote(f_atom), [dict])
+      Creek.Runtime.run(dag, unquote(args), unquote(opts))
+    end
+  end
+
+  # defmacro deploy(dagfunc, args) do
+  #   deploy(dagfunc, args, [])
+  # end
+
   defmacro defdag({name, _, args}, do: exp) do
     # Each parameter is reassigned to a dummy operator.
     # These are replaced in the end when its known weather they are a source or sink.
+    dummy_assigns =
+      args
+      |> Enum.map(fn {name, _, _} -> name end)
+      |> Enum.map(fn var ->
+        quote do
+          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          original_value = var!(consts) |> Map.get(unquote(var))
+          var!(unquote(Macro.var(var, __MODULE__))) = dum
+        end
+      end)
+
     reassignments =
       args
       |> Enum.map(fn {name, _, _} -> name end)
       |> Enum.map(fn var ->
         quote do
-          var!(unquote(Macro.var(var, __MODULE__))) = dummy(unquote(var)) |> Operator.ensure_dag()
+          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          original_value = var!(consts) |> Map.get(unquote(var))
+
+          var!(unquote(Macro.var(var, __MODULE__))) =
+            if Enum.member?(var!(unquote(Macro.var(:dummies, __MODULE__))), unquote(var)) do
+              dum
+            else
+              original_value
+            end
         end
       end)
 
+    reassignments_total = Enum.count(reassignments)
+
     quote do
       # (unquote_splicing(args)) do
-      def unquote(name)() do
-        name = inspect(Atom.to_string(__MODULE__) <> "." <> Atom.to_string(unquote(name)) <> "/#{Enum.count(unquote(reassignments))}")
+      def unquote(name)(var!(unquote(Macro.var(:consts, nil))) \\ %{}) do
+        var!(unquote(Macro.var(:dummies, nil))) = %{}
+        name = inspect(Atom.to_string(__MODULE__) <> "." <> Atom.to_string(unquote(name)) <> "/#{unquote(reassignments_total)}")
 
         # Check if the DAG has been compiled yet.
         cached = Creek.Server.fetch(name)
 
+        # IO.inspect var!(consts), label: "consts"
+        # if cached do
         if cached do
           cached
         else
-          unquote_splicing(reassignments)
           # Create the internal DAG.
+          unquote_splicing(dummy_assigns)
           d = unquote(exp)
-          internal_dag = remap_dummies(d)
+          {ds, internal_dag} = remap_dummies(d)
+          var!(unquote(Macro.var(:dummies, nil))) = ds
+          constants = unquote(reassignments_total) - Enum.count(ds)
+          unquote_splicing(reassignments)
+
+          d = unquote(exp)
+          {ds, internal_dag} = remap_dummies(d)
 
           if ensure_closed(internal_dag) != true do
             raise "DAG #{name} is not closed!"
@@ -205,7 +254,10 @@ defmodule Creek.DSL do
               result
             end
 
-          Creek.Server.store_compiled(name, result)
+          if constants == 0 do
+            Creek.Server.store_compiled(name, result)
+          end
+
           result
         end
       end
@@ -246,25 +298,29 @@ defmodule Creek.DSL do
         operator.name == "dummy"
       end)
 
-    dummies
-    |> Enum.reduce(gdag, fn dummy, gdag ->
-      case {GatedDag.edges_from(gdag, dummy), GatedDag.edges_to(gdag, dummy)} do
-        # Source actor has no incoming edges, and one outgoing.
-        {[{from, _idxf, to, idxt}], []} ->
-          v = Creek.Operator.actor_src() |> Map.put(:label, from.label)
-          gdag = GatedDag.del_vertex(gdag, from)
-          gdag = GatedDag.add_vertex(gdag, v, 0, 1)
-          GatedDag.add_edge(gdag, v, 0, to, idxt)
+    dag =
+      dummies
+      |> Enum.reduce(gdag, fn dummy, gdag ->
+        case {GatedDag.edges_from(gdag, dummy), GatedDag.edges_to(gdag, dummy)} do
+          # Source actor has no incoming edges, and one outgoing.
+          {[{from, _idxf, to, idxt}], []} ->
+            v = Creek.Operator.actor_src() |> Map.put(:label, from.label)
+            gdag = GatedDag.del_vertex(gdag, from)
+            gdag = GatedDag.add_vertex(gdag, v, 0, 1)
+            GatedDag.add_edge(gdag, v, 0, to, idxt)
 
-        {[], [{from, idxf, to, _idxt}]} ->
-          v = Creek.Operator.actor_snk() |> Map.put(:label, to.label)
-          gdag = GatedDag.del_vertex(gdag, to)
-          gdag = GatedDag.add_vertex(gdag, v, 1, 0)
-          GatedDag.add_edge(gdag, from, idxf, v, 0)
+          {[], [{from, idxf, to, _idxt}]} ->
+            v = Creek.Operator.actor_snk() |> Map.put(:label, to.label)
+            gdag = GatedDag.del_vertex(gdag, to)
+            gdag = GatedDag.add_vertex(gdag, v, 1, 0)
+            GatedDag.add_edge(gdag, from, idxf, v, 0)
 
-        {_, _} ->
-          raise "Using `#{dummy.label}` source or sink as input *and* output. This is not a valid dag!"
-      end
-    end)
+          {_, _} ->
+            raise "Using `#{dummy.label}` source or sink as input *and* output. This is not a valid dag!"
+        end
+      end)
+
+    dummy_names = dummies |> Enum.map(fn d -> d.label end)
+    {dummy_names, dag}
   end
 end

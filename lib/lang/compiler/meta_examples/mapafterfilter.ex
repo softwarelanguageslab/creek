@@ -33,6 +33,7 @@ defmodule Parallelizerr do
                    ~> map(fn {{:edge, from, fidx, to, toidx}, dag, it} ->
                      a = fetch!(from)
                      b = fetch!(to)
+
                      if Keyword.has_key?(b.opts, :start) do
                        actual_to = Keyword.get(b.opts, :start)
                        actual_toop = fetch!(actual_to)
