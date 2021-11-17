@@ -25,6 +25,14 @@ defmodule Creek.Source do
     end)
   end
 
+  def replay_subject(description \\ "") do
+    o = %Operator{type: :source, arg: nil, name: "subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.ReplaySubject}
+
+    spawn(fn ->
+      Creek.Source.Subject.source(o, [])
+    end)
+  end
+
   def range(a, b, stepsize \\ 1) do
     o = %Operator{type: :source, arg: {a, b, stepsize}, name: "range", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Range}
 
