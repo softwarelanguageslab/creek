@@ -4,7 +4,10 @@ defmodule Creek.Sink.Ignore do
   end
 
   def complete(_this, pid) do
-    send(pid, :done)
+    if pid != nil do
+      send(pid, :done)
+    end
+
     {pid, :complete}
   end
 end
