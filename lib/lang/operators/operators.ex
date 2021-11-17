@@ -8,6 +8,10 @@ defmodule Creek.Operator do
     %Operator{opts: opts, type: :operator, arg: f, name: "map", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Map}
   end
 
+  def take(n, opts \\ []) do
+    %Operator{opts: opts, type: :operator, arg: n, name: "take-#{inspect(n)}", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.TakeN}
+  end
+
   def filter(f, opts \\ []) do
     %Operator{opts: opts, type: :operator, arg: f, name: "filter", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Filter}
   end
@@ -52,6 +56,7 @@ defmodule Creek.Operator do
     merge(n, [])
   end
 
+  @spec merge(any, any) :: %Creek.Operator{arg: %{0 => [], 1 => []}, impl: Creek.Operator.Merge, in: any, label: <<>>, meta: nil, name: <<_::40>>, opts: any, out: 1, ref: any, type: :operator}
   def merge(n, opts) do
     %Operator{
       opts: opts,

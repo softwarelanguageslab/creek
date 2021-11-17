@@ -1,9 +1,10 @@
 defmodule Creek.Sink.Ignore do
-  def next(_this, nil, _from, _value) do
-    {nil, :ok}
+  def next(_this, pid, _from, _value) do
+    {pid, :ok}
   end
 
-  def complete(_this, state) do
-    {state, :complete}
+  def complete(_this, pid) do
+    send(pid, :done)
+    {pid, :complete}
   end
 end

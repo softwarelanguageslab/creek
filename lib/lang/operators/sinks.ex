@@ -8,8 +8,9 @@ defmodule Creek.Sink do
       Creek.Runtime.Process.sink(o, [])
     end)
   end
-  def ignore() do
-    o = %Operator{type: :sink, arg: nil, name: "ignore", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Ignore}
+
+  def ignore(pid) do
+    o = %Operator{type: :sink, arg: pid, name: "ignore", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Ignore}
 
     spawn(fn ->
       Creek.Runtime.Process.sink(o, [])
@@ -34,6 +35,14 @@ defmodule Creek.Sink do
 
   def tap(pid) do
     o = %Operator{type: :sink, arg: pid, name: "tap", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Tap}
+
+    spawn(fn ->
+      Creek.Runtime.Process.sink(o, [])
+    end)
+  end
+
+  def funnel(subject, tag \\ "a funnel") do
+    o = %Operator{type: :sink, arg: subject, name: "funnel" <> tag, ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Funnel}
 
     spawn(fn ->
       Creek.Runtime.Process.sink(o, [])

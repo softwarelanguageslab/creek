@@ -338,6 +338,11 @@ defmodule Creek.Runtime.Process do
             {state, :skip} ->
               process_loop(node, upstreams, downstreams, state, meta_state)
 
+            {state, :final, value} ->
+              effects_next(value, downstreams, self())
+              effects_complete(from, downstreams, upstreams, from_pid)
+              process_loop(node, upstreams, downstreams, state, meta_state)
+
             _ ->
               nil
               # warn("OPR: next invalid return value!")
@@ -435,7 +440,7 @@ defmodule Creek.Runtime.Process do
         sink_loop(node, [upstream | upstreams], state, meta_state)
 
       {:finish} ->
-        # warn("SNK: Finished (#{inspect(self())})")
+        warn("SNK: Finished (#{inspect(self())})")
         :finished
 
       #################
@@ -542,7 +547,19 @@ defmodule Creek.Runtime.Process do
         else
           response = node.impl.complete(node, state)
 
+          # This complete is the last upstream.
+          # That means that after this one there will be no more upstreams.
           case response do
+            {state, :continue} ->
+              if Enum.count(upstreams) < 2 do
+                effects_complete(from, [], upstreams, self())
+                sink_loop(node, upstreams, state, meta_state)
+              else
+                # Remove the upstream, as it has completed.
+                upstreams = Enum.filter(upstreams, &(&1 != from))
+                sink_loop(node, upstreams, state, meta_state)
+              end
+
             {state, :complete} ->
               effects_complete(from, [], upstreams, self())
               sink_loop(node, upstreams, state, meta_state)
