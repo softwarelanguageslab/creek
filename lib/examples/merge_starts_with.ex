@@ -3,10 +3,9 @@ defmodule Creek.StartWith do
   # meta(Merge)
   # execution(IdentityMeta)
 
-  defdag debug(src1, src2, snk) do
-    src1
-    ~> merge(src2)
-    ~> map(fn x -> IO.puts "Value!" end)
+  defdag debug(src, snk, label) do
+    src
+    ~> map(fn x -> IO.puts "#{label}: #{x}" end)
     ~> snk
   end
 
@@ -14,12 +13,22 @@ defmodule Creek.StartWith do
   def main() do
     subject = Creek.Source.replay_subject()
     sink = Creek.Sink.ignore(self())
-    deploy(debug, [src: subject, snk: sink], [])
-
 
     for i <- 1..10 do
       Creek.Source.ReplaySubject.next(subject, i)
     end
+
+    deploy(debug, [src: subject, snk: sink, label: "test"], [])
+    Process.sleep(1000)
+    deploy(debug, [src: subject, snk: sink, label: "test2"], [])
+    Process.sleep(1000)
+    deploy(debug, [src: subject, snk: sink, label: "test3"], [])
+    Process.sleep(1000)
+    deploy(debug, [src: subject, snk: sink, label: "test4"], [])
+    Process.sleep(1000)
+    deploy(debug, [src: subject, snk: sink, label: "test5"], [])
+    Process.sleep(1000)
+    Creek.Source.ReplaySubject.complete(subject)
 
     receive do
       :done ->

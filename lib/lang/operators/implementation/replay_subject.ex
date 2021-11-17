@@ -2,24 +2,26 @@ defmodule Creek.Source.ReplaySubject do
   def next(subj, value) do
     send(subj, {:next, value})
   end
-
-  def source(node, downstreams) do
-    source_loop(node, downstreams, [])
+  def complete(subj) do
+    send(subj, {:complete})
   end
 
-  @spec source_loop(any, any, map()) :: :ok
-  def source_loop(node, downstreams, previous) do
+  def source(node, downstreams) do
+    source_loop(node, downstreams, [], [])
+  end
+
+  def source_loop(node, downstreams, previous, replayed) do
     receive do
       ###############
       # Bookkeeping #
       ###############
       {:offer_meta, _} ->
-        source_loop(node, downstreams, previous)
+        source_loop(node, downstreams, previous, replayed)
 
       {:add_downstream, downstream} ->
         {_, from_gate, _} = downstream
         log("SBJ: Adding downstream #{inspect(downstream)} at gate #{from_gate}")
-        source_loop(node, [downstream | downstreams], previous)
+        source_loop(node, [downstream | downstreams], previous, replayed)
 
       {:delete_downstream, downstream} ->
         err("SBJ: Delete downstream: #{inspect(downstream)}")
@@ -32,7 +34,7 @@ defmodule Creek.Source.ReplaySubject do
           warn("OPR: Other downstreams left.")
         end
 
-        source_loop(node, new_downstreams, previous)
+        source_loop(node, new_downstreams, previous, replayed)
 
       {:finish} ->
         # warn("SBJ: Finished #{node.name}")
@@ -47,22 +49,27 @@ defmodule Creek.Source.ReplaySubject do
       {:initialize} ->
         log("SBJ: Initializing")
 
-        for value <- previous do
-          propagate_downstream({:next, value}, downstreams)
+        unreplayed =
+          downstreams
+          |> Enum.filter(fn ds -> not Enum.member?(replayed, ds) end)
+
+        for value <- Enum.reverse(previous) do
+          propagate_downstream({:next, value}, unreplayed)
         end
 
-        source_loop(node, downstreams, previous)
+        source_loop(node, downstreams, previous, downstreams)
 
       {:next, value} ->
         log("SBJ: Nexting #{inspect(value)}")
         propagate_downstream({:next, value}, downstreams)
-        source_loop(node, downstreams, previous)
+
+        source_loop(node, downstreams, [value | previous], replayed)
 
       {:complete} ->
         log("SBJ: Complete!")
         propagate_downstream({:complete}, downstreams)
         send_self({:finish})
-        source_loop(node, downstreams, previous)
+        source_loop(node, downstreams, previous, replayed)
 
       m ->
         warn("SBJ: Message not understood: #{inspect(m)}")
