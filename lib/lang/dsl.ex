@@ -115,7 +115,7 @@ defmodule Creek.DSL do
     end
   end
 
-  defmacro deploy(dagfunc, args, opts) do
+  defmacro deploy(dagfunc, args, opts \\ []) do
     {f_atom, _, _} = dagfunc
 
     quote do
