@@ -25,12 +25,26 @@ defmodule Creek.Source do
     end)
   end
 
-  def replay_subject(description \\ "") do
-    o = %Operator{type: :source, arg: nil, name: "subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.ReplaySubject}
+  def subj(description \\ "") do
+    o = %Operator{type: :source, arg: nil, name: "subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Subject}
 
-    spawn(fn ->
-      Creek.Source.ReplaySubject.source(o, [])
-    end)
+    source =
+      spawn(fn ->
+        Creek.Source.Subject.source(o, [])
+      end)
+
+    sink = fn ->
+      o = %Operator{type: :sink, arg: source, name: "funnel" <> description, ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Funnel}
+
+      sink =
+        spawn(fn ->
+          Creek.Runtime.Process.sink(o, [])
+        end)
+
+      sink
+    end
+
+    %{sink: sink, source: source}
   end
 
   def range(a, b, stepsize \\ 1) do

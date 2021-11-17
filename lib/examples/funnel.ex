@@ -5,10 +5,6 @@ defmodule Creek.Funnel do
 
   defdag send_to_funnel(src, snk) do
     src
-    ~> map(fn x ->
-      IO.puts(x)
-      x
-    end)
     ~> snk
   end
 
@@ -21,16 +17,17 @@ defmodule Creek.Funnel do
 
   @spec main :: any
   def main() do
-    subject = Creek.Source.subject()
-    funnel = Creek.Sink.funnel(subject, "this one")
-
+    sub = Creek.Source.subj()
     sink = Creek.Sink.ignore(self())
 
-    deploy(print_funnel, [src: subject, snk: sink], [])
+    IO.inspect sub, label: "sub"
+    # Deploy a DAG to print out all the values coming from
+    # the subject.
+    deploy(print_funnel, [src: sub.source, snk: sink])
 
     for i <- 1..10 do
       src = Creek.Source.single(i)
-      deploy(send_to_funnel, [src: src, snk: funnel], [])
+      deploy(send_to_funnel, [src: src, snk: sub.sink.()])
     end
 
     receive do
