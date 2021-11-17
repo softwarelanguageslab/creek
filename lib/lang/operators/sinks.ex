@@ -8,6 +8,13 @@ defmodule Creek.Sink do
       Creek.Runtime.Process.sink(o, [])
     end)
   end
+  def ignore() do
+    o = %Operator{type: :sink, arg: nil, name: "ignore", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Ignore}
+
+    spawn(fn ->
+      Creek.Runtime.Process.sink(o, [])
+    end)
+  end
 
   def first(ivar) do
     o = %Operator{type: :sink, arg: {ivar, []}, name: "first", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.First}
