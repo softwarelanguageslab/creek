@@ -1,7 +1,7 @@
 defmodule Creek.Factorial do
   use Creek
   # meta(Merge)
-  execution(IdentityMeta)
+  execution(Logging)
 
   defdag test(src, snk) do
     src
@@ -11,7 +11,7 @@ defmodule Creek.Factorial do
 
   @spec main :: any
   def main() do
-    source = Creek.Source.range(1, 10)
+    source = Creek.Source.range(1, 30)
     ivar = Ivar.new()
     sink = Creek.Sink.all(ivar)
     Creek.Runtime.run(test(), [src: source, snk: sink], dot: true)

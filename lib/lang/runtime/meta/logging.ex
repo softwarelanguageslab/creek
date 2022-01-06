@@ -36,7 +36,6 @@ defmodule Logging do
                        ~> effects
 
   # Source
-
   fragment source_tick as filter(&match?({p, :tick}, &1))
                           ~> map(fn {p, :tick} ->
                             IO.puts("Source signaled to produce!")
@@ -45,7 +44,7 @@ defmodule Logging do
                           ~> base
                           ~> map(fn result ->
                             case result do
-                              {p, {state, :next, value}} ->
+                              {p, {state, :tick, value}} ->
                                 IO.puts("Source outgoing: #{inspect(value)}")
 
                               _ ->
