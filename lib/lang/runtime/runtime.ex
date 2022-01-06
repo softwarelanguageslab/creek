@@ -7,6 +7,9 @@ defmodule Creek.Runtime do
   Given a gated dag and a keywordlist of actors, turnst he DAG into a stream.
   """
   def run(gdag, actors, opts \\ []) do
+    gdag = if is_function(gdag) do
+      gdag = gdag.()
+    end
     if Keyword.has_key?(opts, :debug) do
       IO.inspect(GatedDag.vertices(gdag), pretty: true, limit: 4)
     end
@@ -16,6 +19,7 @@ defmodule Creek.Runtime do
       File.write!("unspawned_dag.dot", dot)
     end
 
+    IO.inspect gdag, label: "gdag"
     # Spawn all the operators into their own actor.
     spawned_dag =
       GatedDag.map_vertices(gdag, fn vertex ->

@@ -134,6 +134,138 @@ defmodule Creek.DSL do
   #   deploy(dagfunc, args, [])
   # end
 
+
+
+  defmacro dag({name, _, args}, do: exp) do
+    # Each parameter is reassigned to a dummy operator.
+    # These are replaced in the end when its known weather they are a source or sink.
+    dummy_assigns =
+      args
+      |> Enum.map(fn {name, _, _} -> name end)
+      |> Enum.map(fn var ->
+        quote do
+          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          original_value = var!(consts) |> Map.get(unquote(var))
+          var!(unquote(Macro.var(var, __MODULE__))) = dum
+        end
+      end)
+
+    reassignments =
+      args
+      |> Enum.map(fn {name, _, _} -> name end)
+      |> Enum.map(fn var ->
+        quote do
+          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          original_value = var!(consts) |> Map.get(unquote(var))
+
+          var!(unquote(Macro.var(var, __MODULE__))) =
+            if Enum.member?(var!(unquote(Macro.var(:dummies, __MODULE__))), unquote(var)) do
+              dum
+            else
+              original_value
+            end
+        end
+      end)
+
+    reassignments_total = Enum.count(reassignments)
+
+    quote do
+      fn ->
+        var!(consts) = %{}
+        var!(unquote(Macro.var(:dummies, nil))) = %{}
+        name = inspect(Atom.to_string(__MODULE__) <> "." <> Atom.to_string(unquote(name)) <> "/#{unquote(reassignments_total)}")
+
+        # Check if the DAG has been compiled yet.
+        cached = Creek.Server.fetch(name)
+
+        # IO.inspect var!(consts), label: "consts"
+        # if cached do
+        if cached do
+          cached
+        else
+          # Create the internal DAG.
+          unquote_splicing(dummy_assigns)
+          d = unquote(exp)
+          {ds, internal_dag} = remap_dummies(d)
+          var!(unquote(Macro.var(:dummies, nil))) = ds
+          constants = unquote(reassignments_total) - Enum.count(ds)
+          unquote_splicing(reassignments)
+
+          d = unquote(exp)
+          {ds, internal_dag} = remap_dummies(d)
+
+          if ensure_closed(internal_dag) != true do
+            raise "DAG #{name} is not closed!"
+          end
+
+          result =
+            if alias!(Meta) == :metadag do
+              compiled_dag =
+                case metadag(:generated) do
+                  xs when is_list(xs) ->
+                    xs
+                    |> Enum.reduce(internal_dag, fn mdag, internal_dag ->
+                      events = compile_dag_to_event_list(internal_dag)
+                      compiled_dag = stream_events_to_dag(events, mdag)
+                      compiled_dag
+                    end)
+
+                  x ->
+                    events = compile_dag_to_event_list(internal_dag)
+                    compiled_dag = stream_events_to_dag(events, x)
+                    compiled_dag
+                end
+
+              # dot = GatedDag.to_dot(internal_dag, fn x -> "#{x.name}" end)
+              # File.write!("internal_dag.dot", dot)
+              # dot = GatedDag.to_dot(compiled_dag, fn x -> "#{x.name}" end)
+              # File.write!("compiled_dag.dot", dot)
+              compiled_dag
+            else
+              # dot = GatedDag.to_dot(internal_dag, fn x -> "#{x.name}" end)
+              # File.write!("internal_dag.dot", dot)
+              internal_dag
+            end
+
+          # Inject the meta bethaviour.
+          result =
+            if alias!(RuntimeMeta) != nil do
+              GatedDag.map_vertices(result, fn vertex ->
+                case vertex.type do
+                  :operator ->
+                    %{vertex | meta: alias!(RuntimeMeta).operator()}
+
+                  :source ->
+                    %{vertex | meta: alias!(RuntimeMeta).source()}
+
+                  :sink ->
+                    %{vertex | meta: alias!(RuntimeMeta).sink()}
+
+                  :actor_source ->
+                    %{vertex | meta: alias!(RuntimeMeta).source()}
+
+                  :actor_sink ->
+                    %{vertex | meta: alias!(RuntimeMeta).sink()}
+
+                  # Actors are regular actor implementations to which we cannot graft a meta.
+                  :actor ->
+                    vertex
+                end
+              end)
+            else
+              result
+            end
+
+          if constants == 0 do
+            Creek.Server.store_compiled(name, result)
+          end
+
+          result
+        end
+      end
+    end
+  end
+
   defmacro defdag({name, _, args}, do: exp) do
     # Each parameter is reassigned to a dummy operator.
     # These are replaced in the end when its known weather they are a source or sink.
