@@ -9,6 +9,14 @@ defmodule Creek.Sink do
     end)
   end
 
+  def each(proc) do
+    o = %Operator{type: :sink, arg: proc, name: "each", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Each}
+
+    spawn(fn ->
+      Creek.Runtime.Process.sink(o, [])
+    end)
+  end
+
   def ignore(pid) do
     o = %Operator{type: :sink, arg: pid, name: "ignore", ref: Creek.Server.gen_sym(), in: 1, out: 0, impl: Creek.Sink.Ignore}
 

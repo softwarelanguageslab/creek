@@ -16,6 +16,22 @@ defmodule Creek.Operator do
     %Operator{opts: opts, type: :operator, arg: f, name: "filter", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Filter}
   end
 
+  def debug() do
+    %Operator{
+      opts: [],
+      type: :operator,
+      arg: fn x ->
+        IO.inspect(x, label: "debug")
+        x
+      end,
+      name: "debug",
+      ref: Creek.Server.gen_sym(),
+      in: 1,
+      out: 1,
+      impl: Creek.Operator.Map
+    }
+  end
+
   def zip(opts \\ []) do
     %Operator{
       type: :operator,
@@ -149,8 +165,6 @@ defmodule Creek.Operator do
 
   def average() do
     transform({nil, nil}, fn v, {count, sum} ->
-      IO.puts(v)
-
       if count == nil and sum == nil do
         {{1, v}, v}
       else
