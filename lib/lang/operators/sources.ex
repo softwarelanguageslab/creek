@@ -1,6 +1,13 @@
 defmodule Creek.Source do
   alias Creek.Operator
 
+  def delay(timeout, value \\ :default_delay_value) do
+    o = %Operator{type: :source, arg: {timeout, value}, name: "delay", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Delay}
+
+    spawn(fn ->
+      Creek.Runtime.Process.source(o, [])
+    end)
+  end
   def single(val) do
     o = %Operator{type: :source, arg: val, name: "single", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Single}
 
@@ -49,6 +56,14 @@ defmodule Creek.Source do
 
   def range(a, b, stepsize \\ 1) do
     o = %Operator{type: :source, arg: {a, b, stepsize, 0}, name: "range", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Range}
+
+    spawn(fn ->
+      Creek.Runtime.Process.source(o, [])
+    end)
+  end
+
+  def function(f) do
+    o = %Operator{type: :source, arg: f, name: "function", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Function}
 
     spawn(fn ->
       Creek.Runtime.Process.source(o, [])

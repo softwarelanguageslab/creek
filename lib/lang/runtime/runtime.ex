@@ -9,6 +9,8 @@ defmodule Creek.Runtime do
   def run(gdag, actors, opts \\ []) do
     gdag = if is_function(gdag) do
       gdag = gdag.()
+    else
+      gdag = gdag
     end
     if Keyword.has_key?(opts, :debug) do
       IO.inspect(GatedDag.vertices(gdag), pretty: true, limit: 4)
