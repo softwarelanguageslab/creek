@@ -352,7 +352,7 @@ defmodule Creek.Runtime.Process do
       {:complete, from = {from_pid, from_gate, to_gate}} ->
         # log("OPR: Received complete from, #{inspect(from_pid)} @ gate #{inspect(to_gate)}")
 
-        if Enum.count(upstreams) < 2 do
+        # if Enum.count(upstreams) < 2 do
           if node.meta != nil do
             source = node.meta
             # ref = make_ref()()
@@ -374,6 +374,7 @@ defmodule Creek.Runtime.Process do
             case response do
               # The operator really wants to quit, even though other upstreams are stil alive.
               {state, :complete} ->
+                send_self({:finish})
                 effects_complete(from, downstreams, upstreams, self())
                 process_loop(node, upstreams, downstreams, state, meta_state)
 
@@ -390,10 +391,10 @@ defmodule Creek.Runtime.Process do
                 process_loop(node, upstreams, downstreams, state, meta_state)
             end
           end
-        else
-          upstreams = Enum.filter(upstreams, &(&1 != {from_pid, from_gate, to_gate}))
-          process_loop(node, upstreams, downstreams, state, meta_state)
-        end
+        # else
+          # upstreams = Enum.filter(upstreams, &(&1 != {from_pid, from_gate, to_gate}))
+          # process_loop(node, upstreams, downstreams, state, meta_state)
+        # end
 
       m ->
         nil

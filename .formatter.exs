@@ -60,6 +60,7 @@
     mapper: :*,
     op: :*,
     log_next: :*,
+    not_next: :*,
     source_tick: :*
   ]
 ]

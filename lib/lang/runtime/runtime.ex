@@ -21,7 +21,6 @@ defmodule Creek.Runtime do
       File.write!("unspawned_dag.dot", dot)
     end
 
-    IO.inspect gdag, label: "gdag"
     # Spawn all the operators into their own actor.
     spawned_dag =
       GatedDag.map_vertices(gdag, fn vertex ->

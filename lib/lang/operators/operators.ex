@@ -40,6 +40,18 @@ defmodule Creek.Operator do
     }
   end
 
+  def zipRight(opts \\ []) do
+    %Operator{
+      type: :operator,
+      arg: %{0 => [], 1 => []},
+      name: "zipLatest",
+      ref: Creek.Server.gen_sym(),
+      in: 2,
+      out: 1,
+      impl: Creek.Operator.ZipRight
+    }
+  end
+
   def fold(proc, init \\ nil) do
     %Operator{
       type: :operator,
