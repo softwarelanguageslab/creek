@@ -8,14 +8,13 @@ defmodule ThermometerMeta do
   def is_json?(_), do: false
 
   def xml_to_float({:xml, value}), do: value
-
   def json_to_float({:json, value}), do: value
 
-  fragment not_next as filter(&(not match?({_, :next, _, _}, &1)))
-                       ~> base
-                       ~> effects
+  dag not_next as filter(&(not match?({_, :next, _, _}, &1)))
+                  ~> base
+                  ~> effects
 
-  fragment next as filter(&match?({_, :next, _, _}, &1))
+  dag next as filter(&match?({_, :next, _, _}, &1))
                    ~> map(fn {state, :next, encoded, from} ->
                      decoded =
                        cond do
@@ -29,25 +28,27 @@ defmodule ThermometerMeta do
                    ~> base()
                    ~> effects()
 
-  fragment mymeta as dup
-                     ~> (next ||| not_next)
-                     ~> merge
+  dag encoding_meta as dup
+                       ~> (next ||| not_next)
+                       ~> merge
 
   defdag operator(src, snk) do
     src
-    ~> mymeta
+    ~> base
+    ~> effects
     ~> snk
   end
 
   defdag source(src, snk) do
     src
-    ~> mymeta
+    ~> encoding_meta
     ~> snk
   end
 
   defdag sink(src, snk) do
     src
-    ~> mymeta
+    ~> base
+    ~> effects
     ~> snk
   end
 end
