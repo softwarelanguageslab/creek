@@ -1,6 +1,5 @@
 import './style.css';
 
-var current_stream_id = null;
 
 var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
     mode: "ruby",
@@ -8,7 +7,15 @@ var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
 });
 editor.save()
 
-var streams = [];
+var editor2 = CodeMirror.fromTextArea(document.getElementById('editor2'), {
+    mode: "ruby",
+    lineNumbers: true,
+});
+editor2.save()
+
+var stream_cache = {};
+var operators_cache = {};
+var current_stream_id = null;
 // create an array with nodes
 // var nodes = new vis.DataSet([
 //     { id: 1, label: "Node 1" },
@@ -35,24 +42,26 @@ var network = new vis.Network(container, data, options);
 var selected_node = null;
 var selected_edge = null;
 
-function updateSelectedNode() {
-    console.log(`Clicked on node ${selected_node}`);
-    
-    
+function updateNodeDetails() {
     var node = nodes.get(selected_node);
     var node_id = node.id;
     var node_label = node.label;
-    document.getElementById("node_id").textContent = node_id;
-    document.getElementById("node_label").textContent = node_label;
 
-    editor.doc.setValue("# " + node_label);
+    var operator = operators_cache[node_id];
+    console.log(operator);
+    document.getElementById("node_id").textContent = node_id;
+    document.getElementById("node_name").textContent = operator.name;
+    document.getElementById("node_arity").textContent = `${operator.in}:${operator.out}`;
+    editor.doc.setValue(operator.arg);
+    editor2.doc.setValue(operator.state);
 
     document.getElementById("node_data").style.display = "flex";
     document.getElementById("edge_data").style.display = "none";
 
-    socket.send(JSON.stringify({ "node_details": node_id, "stream": null }))
+    editor.refresh()
+    editor2.refresh()
 };
-function updateSelectedEdge() {
+function updateEdgeDetails() {
     console.log(`Clicked on edge ${selected_edge}`);
 
     var edge = edges.get(selected_edge);
@@ -116,12 +125,12 @@ network.on("click", function (params) {
     socketOff();
     if (params.nodes != null && params.nodes.length > 0) {
         selected_node = params.nodes[0];
-        updateSelectedNode();
+        updateNodeDetails();
         return;
     }
     if (params.edges != null && params.edges.length > 0) {
         selected_edge = params.edges[0];
-        updateSelectedEdge();
+        updateEdgeDetails();
         return;
     }
 });
@@ -135,75 +144,87 @@ function socketOff() {
     document.getElementById("socket_off").style.display = "none";
 }
 
-function requestStreamData(stream_id) {
-    var message = {"message": "stream_details", "stream_id": stream_id};
-    socket.send(JSON.stringify(message))
+function streamClick(event) {
+    var streamid = event.target.innerHTML.substring(7);
+    var stream = stream_cache[streamid];
+
+    current_stream_id = streamid;
+    operators_cache = {};
+    nodes.clear();
+    edges.clear();
+
+    stream.forEach(edge => {
+        var from = { id: edge.from.ref, label: edge.from.name }
+        var to = { id: edge.to.ref, label: edge.to.name }
+        var edg = { from: from.id, to: to.id, label: "" }
+        operators_cache[edge.from.ref] = edge.from;
+        operators_cache[edge.to.ref] = edge.to;
+        nodes.update(from);
+        nodes.update(to);
+        edges.update(edg);
+        
+    });
 }
 
-function streamClick(event) {
-    var streamid = event.target.innerHTML.substring(7)
-    current_stream_id = streamid;
-    socket.send(JSON.stringify({"message": "stream_details", "stream_id": streamid}));
-}
-function addStream(stream) {
+function addStreamButton(stream_id) {
     var streams = document.getElementById("streamlist");
     var btn = document.createElement("button");
     btn.setAttribute("type", "button");
     btn.setAttribute("class", "streambtn btn btn-primary");
     btn.onclick = streamClick;
-    btn.innerHTML = `Stream ${stream.id}`;
+    btn.innerHTML = `Stream ${stream_id}`;
     streams.appendChild(btn);
 }
 let socket = new WebSocket("ws://localhost:4000/ws");
 
 socket.onopen = function (e) {
     socketOn();
-    // socket.send(JSON.stringify({ "message": "hello" }));
 };
 
 socket.onmessage = function (event) {
-    console.log(event);
     var payload = JSON.parse(event.data);
+    console.log(payload);
     handleServerEvent(payload);
 };
 
 socket.onclose = function (event) {
     socketOff();
     if (event.wasClean) {
-        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        console.log(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
     } else {
-        // e.g. server process killed or network down
-        // event.code is usually 1006 in this case
-        console.log('[close] Connection died');
+        console.log('Connection died abruptly!');
     }
 };
 
 socket.onerror = function (error) {
     socketOff();
-    alert(`[error] ${error.message}`);
+    alert(`Socket error ${error.message}`);
 };
 
 
 function handleServerEvent(event) {
     if (event.message == "streamlist") {
-        event.streams.forEach(stream => {
-            addStream(stream);
-        });
-    }
-    if (event.message == "stream_details") {
         nodes.clear();
         edges.clear();
 
-        event.stream.operators.forEach(operator => {
-            var op = {id: operator.ref, label: operator.type}
-            nodes.add(op)
-        });
-
-        event.stream.edges.forEach(edge => 
-            {
-                console.log(edge)
-                var e = {from: edge.from, to: edge.to, label: ""}
-                edges.add(e);
-            })
+        stream_cache = event.streams;
+        for (const key in event.streams) {
+            addStreamButton(key);
+        }
     }
+    // if (event.message == "stream_details") {
+    //     nodes.clear();
+    //     edges.clear();
+
+    //     event.stream.operators.forEach(operator => {
+    //         var op = { id: operator.ref, label: operator.type }
+    //         nodes.add(op)
+    //     });
+
+    //     event.stream.edges.forEach(edge => {
+    //         console.log(edge)
+    //         var e = { from: edge.from, to: edge.to, label: "" }
+    //         edges.add(e);
+    //     })
+    // }
 }

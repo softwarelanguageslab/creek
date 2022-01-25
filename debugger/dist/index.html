@@ -26,7 +26,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="32" class="me-2" viewBox="0 0 100 100" role="img">
           <text y=".9em" font-size="90">🌊</text>
         </svg>
-        : <span class="fs-4">Debugger</span>
+        <span class="fs-4">Debugger</span>
       </a>
     </header>
 
@@ -41,17 +41,21 @@
       </div>
       <!-- Graph -->
       <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-6">
           <div id="mynetwork"></div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-6">
           <ul class="list-group list-group-flush" id="node_data" style="display:none;">
-            <li class="list-group-item">Node: <span id="node_id"></span></li>
-            <li class="list-group-item">Label: <span id="node_label"></span></li>
-            <li class="list-group-item">Type: <span id="node_type"></span></li>
-            <li class="list-group-item">Arity: <span id="node_arity"></span></li>
-            <li class="list-group-item">State: <span id="node_state"></span></li>
+            <li class="list-group-item">Node: <span class="field" id="node_id"></span></li>
+            <li class="list-group-item">Name: <span class="field" id="node_name"></span></li>
+            <li class="list-group-item">Arity: <span class="field" id="node_arity"></span></li>
+            <li class="list-group-item">State:
+              <textarea id='editor'>#no content </textarea>
+            </li>
+            <li class="list-group-item">Arguments:
+              <textarea id='editor2'>#no content </textarea>
+            </li>
           </ul>
           <ul class="list-group list-group-flush" id="edge_data" style="display:none;">
             <li class="list-group-item">Edge: <span id="edge_id"></span></li>
@@ -60,13 +64,7 @@
         </div>
       </div>
 
-      <div class="row">
-        <div class="col-12">
-          <span id="node_arguments">
-            <textarea id='editor'>#no content </textarea>
-          </span>
-        </div>
-      </div>
+
 
     </main>
 

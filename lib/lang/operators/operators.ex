@@ -1,6 +1,17 @@
 defimpl Jason.Encoder, for: Creek.Operator do
   def encode(value, opts) do
-    Jason.Encode.map(Map.take(value, [:name, :in, :out, :ref, :type, :label, :type]), opts)
+    IO.inspect value
+    defaults = Map.take(value, [:name, :in, :out, :ref, :type, :label, :type, :name])
+
+    values =
+      defaults
+      |> Map.put(:opts, inspect(Map.get(value, :opts)))
+      |> Map.put(:arg, inspect(Map.get(value, :arg)))
+      |> Map.put(:state, inspect(Map.get(value, :state)))
+
+    IO.inspect values
+
+    Jason.Encode.map(values, opts)
   end
 end
 

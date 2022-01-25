@@ -7,7 +7,7 @@ defmodule Creek.Server do
   require Logger
   alias __MODULE__
 
-  defstruct count: 0, id: 0, compiled: %{}, streams: %{}
+  defstruct count: 0, id: 0, compiled: %{}, streams: %{}, operators: %{}
 
   def start_link([]) do
     GenServer.start_link(__MODULE__, %Server{}, name: __MODULE__)
@@ -42,61 +42,36 @@ defmodule Creek.Server do
     GenServer.call(__MODULE__, :clear_cache)
   end
 
-  def add_stream(id) do
-    GenServer.call(__MODULE__, {:add_stream, id})
-  end
-
-  def add_operator(stream_id, operator) do
-    GenServer.call(__MODULE__, {:add_operator, stream_id, operator})
-  end
-
-  def add_edge(stream_id, from, to) do
-    GenServer.call(__MODULE__, {:add_edge, stream_id, from, to})
+  def add_stream(id, stream) do
+    GenServer.call(__MODULE__, {:add_stream, id, stream})
   end
 
   def get_streams() do
     GenServer.call(__MODULE__, :all_streams)
   end
 
+  def add_operator(id, operator) do
+    GenServer.call(__MODULE__, {:add_operator, id, operator})
+  end
+
   #############
   # Callbacks #
   #############
 
-  def handle_call({:add_stream, id}, _from, state) do
+  def handle_call({:add_operator, id, operator}, _from, state) do
+    IO.puts("Adding an operator: {#{inspect(id)}, #{inspect(operator)}}")
+    {:reply, :ok, %{state | operators: Map.put(state.operators, id, operator)}}
+  end
+
+  def handle_call({:add_stream, id, stream}, _from, state) do
     Phoenix.PubSub.broadcast(Creek.PubSub, "streams:new", {:new_stream, id})
-    {:reply, :ok, %{state | streams: Map.put(state.streams, id, %{operators: [], edges: []})}}
-  end
 
-  def handle_call({:add_edge, stream_id, from, to}, _from, state) do
-    streams = state.streams
-    stream = Map.get(streams, stream_id)
-    edges = Map.get(stream, :edges)
+    stream = stream
+    |> Enum.map(fn {from, fidx, to, tidx} ->
+      %{from: from, fidx: fidx, to: to, tidx: tidx}
+    end)
 
-    edges =
-      [%{from: from, to: to} | edges]
-      |> Enum.sort()
-      |> Enum.dedup()
-
-    stream = %{stream | edges: edges}
-    streams = Map.put(streams, stream_id, stream)
-
-    {:reply, :ok, %{state | streams: streams}}
-  end
-
-  def handle_call({:add_operator, stream_id, operator}, _from, state) do
-    streams = state.streams
-    stream = Map.get(streams, stream_id)
-    operators = Map.get(stream, :operators)
-
-    operators =
-      [operator | operators]
-      |> Enum.sort()
-      |> Enum.dedup()
-
-    stream = %{stream | operators: operators}
-    streams = Map.put(streams, stream_id, stream)
-
-    {:reply, :ok, %{state | streams: streams}}
+    {:reply, :ok, %{state | streams: Map.put(state.streams, id, stream)}}
   end
 
   def handle_call(:all_streams, _from, state) do

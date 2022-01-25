@@ -9,12 +9,7 @@ defmodule Creek.Debugger.SocketHandler do
   def websocket_init(state) do
     Phoenix.PubSub.subscribe(Creek.PubSub, "streams:new")
 
-    streams =
-      Creek.Server.get_streams()
-      |> Map.to_list()
-      |> Enum.map(fn {id, val} ->
-        %{id: id, val: val}
-      end)
+    streams = Creek.Server.get_streams()
 
     payload = Jason.encode!(%{"message" => "streamlist", "streams" => streams})
 
@@ -49,7 +44,7 @@ defmodule Creek.Debugger.SocketHandler do
 
     if Map.has_key?(streams, stream_id) do
       stream = Map.get(streams, stream_id)
-      IO.inspect stream
+      IO.inspect(stream)
       # %{"message" => "stream_details", "stream" => stream}
     else
       IO.puts("Stream not found")
