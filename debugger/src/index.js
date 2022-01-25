@@ -51,9 +51,10 @@ function updateNodeDetails() {
     console.log(operator);
     document.getElementById("node_id").textContent = node_id;
     document.getElementById("node_name").textContent = operator.name;
+    document.getElementById("node_pid").textContent = operator.pid;
     document.getElementById("node_arity").textContent = `${operator.in}:${operator.out}`;
     editor.doc.setValue(operator.arg);
-    editor2.doc.setValue(operator.state);
+    editor2.doc.setValue(operator.opts);
 
     document.getElementById("node_data").style.display = "flex";
     document.getElementById("edge_data").style.display = "none";
@@ -154,15 +155,17 @@ function streamClick(event) {
     edges.clear();
 
     stream.forEach(edge => {
-        var from = { id: edge.from.ref, label: edge.from.name }
-        var to = { id: edge.to.ref, label: edge.to.name }
+        var from = { id: edge.from.pid, label: edge.from.name }
+        var to = { id: edge.to.pid, label: edge.to.name }
+        console.log(edge.from)
+        console.log(to)
         var edg = { from: from.id, to: to.id, label: "" }
-        operators_cache[edge.from.ref] = edge.from;
-        operators_cache[edge.to.ref] = edge.to;
+        operators_cache[edge.from.pid] = edge.from;
+        operators_cache[edge.to.pid] = edge.to;
         nodes.update(from);
         nodes.update(to);
         edges.update(edg);
-        
+
     });
 }
 
@@ -183,7 +186,6 @@ socket.onopen = function (e) {
 
 socket.onmessage = function (event) {
     var payload = JSON.parse(event.data);
-    console.log(payload);
     handleServerEvent(payload);
 };
 
@@ -213,9 +215,32 @@ function handleServerEvent(event) {
         }
     }
 
-    if(event.message == "new_stream") {
+    if (event.message == "new_stream") {
         stream_cache[event.id] = event.stream;
         addStreamButton(event.id);
+    }
+
+    if (event.message == "incoming") {
+        if (current_stream_id == null) {
+            return;
+        }
+        // Check if this event pertains to the current stream.
+        var current_stream = stream_cache[current_stream_id];
+        var found = null;
+        for (let i = 0; i < current_stream.length; i++) {
+            var edge = current_stream[i]
+            if (edge.from.pid == event.pid) {
+                found = edge.from;
+            }
+            if (edge.to.pid == event.pid) {
+                found = edge.to;
+            }
+        }
+
+        nodeEmitted(found.pid, event.value);
+
+        
+
     }
 
     // if (event.message == "stream_details") {

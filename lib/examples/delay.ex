@@ -11,7 +11,7 @@ defmodule Creek.Delay do
   @spec main :: any
   def main() do
     s1 = Creek.Source.delay(3000, :delayed_value)
-    s2 = Creek.Source.range(10, 20)
+    s2 = Creek.Source.range(10, 20, 1, 1000)
 
     ivar = Ivar.new()
     sink = Creek.Sink.all(ivar)

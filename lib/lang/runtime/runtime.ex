@@ -20,7 +20,7 @@ defmodule Creek.Runtime do
 
     # Register the stream in the Stream repository.
     stream_id = Creek.Server.gen_id()
-    Creek.Server.add_stream(stream_id, GatedDag.edges(gdag))
+    operators = GatedDag.vertices(gdag) |> Enum.map(fn o -> Map.from_struct(o) end)
 
     if Keyword.has_key?(opts, :dot) do
       dot = GatedDag.to_dot(gdag, fn x -> "#{x.name}" end)
@@ -56,9 +56,31 @@ defmodule Creek.Runtime do
             Process.new(pid, ref)
             Creek.Server.add_operator(ref, %{vertex: vertex, pid: pid})
             Process.new(pid, ref)
-
         end
       end)
+
+    vertices = GatedDag.vertices(spawned_dag)
+
+    with_pids =
+      operators
+      |> Enum.map(fn operator ->
+        proc =
+          vertices
+          |> Enum.filter(fn p -> p.ref == operator.ref end)
+          |> hd()
+
+        Map.put(operator, :pid, proc.pid)
+      end)
+
+    edges =
+      GatedDag.edges(gdag)
+      |> Enum.map(fn {from, fidx, to, tidx} ->
+        new_from = with_pids |> Enum.filter(fn o -> o.ref == from.ref end) |> hd()
+        new_to = with_pids |> Enum.filter(fn o -> o.ref == to.ref end) |> hd()
+        {new_from, fidx, new_to, tidx}
+      end)
+
+    Creek.Server.add_stream(stream_id, edges)
 
     # Add the up- and downstreams in all the operators.
     # The unique identification of an upstream is its pid + outputgate + input gate.

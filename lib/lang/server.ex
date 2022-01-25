@@ -103,7 +103,7 @@ defmodule Creek.Server do
   end
 
   def handle_info(value, state) do
-    IO.inspect(value, label: "info at server")
+    # IO.inspect(value, label: "info at server")
     {:noreply, state}
   end
 
