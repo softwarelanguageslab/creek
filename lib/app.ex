@@ -3,7 +3,38 @@ defmodule Creek.App do
 
   @impl true
   def start(_type, _args) do
-    Creek.Server.start_link()
+    children = [
+      Plug.Cowboy.child_spec(
+        scheme: :http,
+        plug: Creek.Debugger.Router,
+        options: [
+          dispatch: dispatch(),
+          port: 4000
+        ]
+      ),
+      Registry.child_spec(
+        keys: :duplicate,
+        name: Registry.Creek.DebuggerApp
+      ),
+      {Phoenix.PubSub, name: Creek.PubSub},
+      Creek.Server
+    ]
+
+    # Creek.Server.start_link()
+
+    opts = [strategy: :one_for_one, name: Creek.App]
+    Supervisor.start_link(children, opts)
+  end
+
+  defp dispatch do
+    [
+      {:_,
+       [
+         {"/ws/[...]", Creek.Debugger.SocketHandler, []},
+         {"/assets/[...]", :cowboy_static, {:dir, "debugger/assets"}},
+         {:_, Plug.Cowboy.Handler, {Creek.Debugger.Router, []}}
+       ]}
+    ]
   end
 
   def test() do

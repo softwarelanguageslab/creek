@@ -7,14 +7,20 @@ defmodule Creek.Runtime do
   Given a gated dag and a keywordlist of actors, turnst he DAG into a stream.
   """
   def run(gdag, actors, opts \\ []) do
-    gdag = if is_function(gdag) do
-      gdag = gdag.()
-    else
-      gdag = gdag
-    end
+    gdag =
+      if is_function(gdag) do
+        gdag = gdag.()
+      else
+        gdag = gdag
+      end
+
     if Keyword.has_key?(opts, :debug) do
       IO.inspect(GatedDag.vertices(gdag), pretty: true, limit: 4)
     end
+
+    # Register the stream in the Stream repository.
+    stream_id = Creek.Server.gen_id()
+    Creek.Server.add_stream(stream_id)
 
     if Keyword.has_key?(opts, :dot) do
       dot = GatedDag.to_dot(gdag, fn x -> "#{x.name}" end)
@@ -24,6 +30,8 @@ defmodule Creek.Runtime do
     # Spawn all the operators into their own actor.
     spawned_dag =
       GatedDag.map_vertices(gdag, fn vertex ->
+        Creek.Server.add_operator(stream_id, vertex)
+
         case vertex do
           %Operator{name: "actor_src", label: label, ref: ref} ->
             if Keyword.has_key?(actors, label) do
@@ -31,6 +39,8 @@ defmodule Creek.Runtime do
               send(pid, {:offer_meta, vertex.meta})
               Process.new(pid, ref)
               Process.new(Keyword.fetch!(actors, label), ref)
+
+              # Register the operator in the Stream repository.
             else
               raise "DAG expects source actor for #{label}. Cannot run DAG with given arguments."
             end
@@ -57,11 +67,13 @@ defmodule Creek.Runtime do
     |> Enum.map(fn vertex ->
       GatedDag.edges_from(spawned_dag, vertex)
       |> Enum.map(fn {from, idxf, to, idxt} ->
+        Creek.Server.add_edge(stream_id, from.ref, to.ref)
         send(from.pid, {:add_downstream, {to.pid, idxf, idxt}})
       end)
 
       GatedDag.edges_to(spawned_dag, vertex)
       |> Enum.map(fn {from, idxf, to, idxt} ->
+        Creek.Server.add_edge(stream_id, from.ref, to.ref)
         send(to.pid, {:add_upstream, {from.pid, idxf, idxt}})
       end)
     end)

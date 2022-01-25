@@ -7,13 +7,14 @@ defmodule Creek.Server do
   require Logger
   alias __MODULE__
 
-  defstruct count: 0, id: 0, compiled: %{}
+  defstruct count: 0, id: 0, compiled: %{}, streams: %{}
 
-  def start_link() do
+  def start_link([]) do
     GenServer.start_link(__MODULE__, %Server{}, name: __MODULE__)
   end
 
   def init(opts) do
+    # Phoenix.PubSub.subscribe(Creek.PubSub, @topic)
     {:ok, opts}
   end
 
@@ -41,9 +42,66 @@ defmodule Creek.Server do
     GenServer.call(__MODULE__, :clear_cache)
   end
 
+  def add_stream(id) do
+    GenServer.call(__MODULE__, {:add_stream, id})
+  end
+
+  def add_operator(stream_id, operator) do
+    GenServer.call(__MODULE__, {:add_operator, stream_id, operator})
+  end
+
+  def add_edge(stream_id, from, to) do
+    GenServer.call(__MODULE__, {:add_edge, stream_id, from, to})
+  end
+
+  def get_streams() do
+    GenServer.call(__MODULE__, :all_streams)
+  end
+
   #############
   # Callbacks #
   #############
+
+  def handle_call({:add_stream, id}, _from, state) do
+    Phoenix.PubSub.broadcast(Creek.PubSub, "streams:new", {:new_stream, id})
+    {:reply, :ok, %{state | streams: Map.put(state.streams, id, %{operators: [], edges: []})}}
+  end
+
+  def handle_call({:add_edge, stream_id, from, to}, _from, state) do
+    streams = state.streams
+    stream = Map.get(streams, stream_id)
+    edges = Map.get(stream, :edges)
+
+    edges =
+      [%{from: from, to: to} | edges]
+      |> Enum.sort()
+      |> Enum.dedup()
+
+    stream = %{stream | edges: edges}
+    streams = Map.put(streams, stream_id, stream)
+
+    {:reply, :ok, %{state | streams: streams}}
+  end
+
+  def handle_call({:add_operator, stream_id, operator}, _from, state) do
+    streams = state.streams
+    stream = Map.get(streams, stream_id)
+    operators = Map.get(stream, :operators)
+
+    operators =
+      [operator | operators]
+      |> Enum.sort()
+      |> Enum.dedup()
+
+    stream = %{stream | operators: operators}
+    streams = Map.put(streams, stream_id, stream)
+
+    {:reply, :ok, %{state | streams: streams}}
+  end
+
+  def handle_call(:all_streams, _from, state) do
+    {:reply, state.streams, state}
+  end
 
   def handle_call(:clear_cache, _from, state) do
     {:reply, :ok, %{state | compiled: Map.new()}}
@@ -62,12 +120,17 @@ defmodule Creek.Server do
   end
 
   def handle_call(:gen_id, _from, state) do
-    {:reply, "uuid#{state.id}", %{state | count: state.id + 1}}
+    {:reply, "uuid#{state.id}", %{state | id: state.id + 1}}
   end
 
   def handle_call(m, from, state) do
     Logger.debug("Call #{inspect(m)} from #{inspect(from)} with state #{inspect(state)}")
     {:reply, :response, state}
+  end
+
+  def handle_info(value, state) do
+    IO.inspect(value, label: "info at server")
+    {:noreply, state}
   end
 
   ###########

@@ -1,4 +1,4 @@
-defmodule Creek.Factorial do
+defmodule Creek.Factorial2 do
   use Creek
   # meta(Merge)
   execution(Logging)

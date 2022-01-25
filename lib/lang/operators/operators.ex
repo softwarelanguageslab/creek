@@ -1,3 +1,9 @@
+defimpl Jason.Encoder, for: Creek.Operator do
+  def encode(value, opts) do
+    Jason.Encode.map(Map.take(value, [:name, :in, :out, :ref, :type, :label, :type]), opts)
+  end
+end
+
 defmodule Creek.Operator do
   import Creek.DSL
   defstruct opts: [], arg: nil, name: nil, ref: nil, in: 0, out: 0, label: "", impl: nil, meta: nil, type: nil

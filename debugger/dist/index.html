@@ -11,11 +11,14 @@
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
   <title>Anabranch Debugger</title>
   <!-- Bootstrap core CSS -->
-  <link rel="stylesheet" href="../assets/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="../assets/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="../assets/css/codemirror.css" />
   <!-- Custom styles for this template -->
 </head>
 
 <body>
+  <div id="socket_off">🟢</div>
+  <div id="socket_on">🔴</div>
   <div class="col-lg-8 mx-auto p-3 py-md-5">
     <!-- Header -->
     <header class="d-flex align-items-center pb-2 mb-2 border-bottom">
@@ -23,7 +26,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="32" class="me-2" viewBox="0 0 100 100" role="img">
           <text y=".9em" font-size="90">🌊</text>
         </svg>
-        <span class="fs-4">Debugger</span>
+        : <span class="fs-4">Debugger</span>
       </a>
     </header>
 
@@ -32,10 +35,7 @@
 
       <div class="row">
         <div class="col-12">
-          <p>
-            <button type="button" class="btn btn-primary">Stream 1</button>
-            <button type="button" class="btn btn-primary">Stream 2</button>
-            <button type="button" class="btn btn-primary">Stream 3</button>
+          <p id="streamlist">
           </p>
         </div>
       </div>
@@ -44,7 +44,30 @@
         <div class="col-md-8">
           <div id="mynetwork"></div>
         </div>
+
+        <div class="col-md-4">
+          <ul class="list-group list-group-flush" id="node_data" style="display:none;">
+            <li class="list-group-item">Node: <span id="node_id"></span></li>
+            <li class="list-group-item">Label: <span id="node_label"></span></li>
+            <li class="list-group-item">Type: <span id="node_type"></span></li>
+            <li class="list-group-item">Arity: <span id="node_arity"></span></li>
+            <li class="list-group-item">State: <span id="node_state"></span></li>
+          </ul>
+          <ul class="list-group list-group-flush" id="edge_data" style="display:none;">
+            <li class="list-group-item">Edge: <span id="edge_id"></span></li>
+            <li class="list-group-item">Label: <span id="edge_label"></span></li>
+          </ul>
+        </div>
       </div>
+
+      <div class="row">
+        <div class="col-12">
+          <span id="node_arguments">
+            <textarea id='editor'>#no content </textarea>
+          </span>
+        </div>
+      </div>
+
     </main>
 
 
@@ -55,6 +78,8 @@
 
   </div>
   <script src="../assets/js/vis-network.js"></script>
+  <script src="../assets/js/codemirror.js"></script>
+  <script src="../assets/js/ruby.js"></script>
   <script src="main.js"></script>
 
 
