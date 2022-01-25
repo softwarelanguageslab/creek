@@ -59,18 +59,17 @@ defmodule Creek.Server do
   #############
 
   def handle_call({:add_operator, id, operator}, _from, state) do
-    IO.puts("Adding an operator: {#{inspect(id)}, #{inspect(operator)}}")
     {:reply, :ok, %{state | operators: Map.put(state.operators, id, operator)}}
   end
 
   def handle_call({:add_stream, id, stream}, _from, state) do
-    Phoenix.PubSub.broadcast(Creek.PubSub, "streams:new", {:new_stream, id})
+    stream =
+      stream
+      |> Enum.map(fn {from, fidx, to, tidx} ->
+        %{from: from, fidx: fidx, to: to, tidx: tidx}
+      end)
 
-    stream = stream
-    |> Enum.map(fn {from, fidx, to, tidx} ->
-      %{from: from, fidx: fidx, to: to, tidx: tidx}
-    end)
-
+    Phoenix.PubSub.broadcast(Creek.PubSub, "streams:new", {:new_stream, id, stream})
     {:reply, :ok, %{state | streams: Map.put(state.streams, id, stream)}}
   end
 

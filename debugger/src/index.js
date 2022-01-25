@@ -212,6 +212,12 @@ function handleServerEvent(event) {
             addStreamButton(key);
         }
     }
+
+    if(event.message == "new_stream") {
+        stream_cache[event.id] = event.stream;
+        addStreamButton(event.id);
+    }
+
     // if (event.message == "stream_details") {
     //     nodes.clear();
     //     edges.clear();

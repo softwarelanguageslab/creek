@@ -23,6 +23,11 @@ defmodule Creek.Debugger.SocketHandler do
     {[payload], state}
   end
 
+  def websocket_info({:new_stream, id, stream}, state) do
+    message = %{message: "new_stream", id: id, stream: stream}
+    {[{:text, Jason.encode!(message)}], state}
+  end
+
   def websocket_info(info, state) do
     IO.inspect(info)
     {[], state}
