@@ -5,7 +5,7 @@ defmodule Creek.StartWith do
 
   defdag debug(src, snk, label) do
     src
-    ~> map(fn x -> IO.puts "#{label}: #{x}" end)
+    ~> map(fn x -> IO.puts("#{label}: #{x}") end)
     ~> snk
   end
 

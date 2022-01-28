@@ -11,7 +11,7 @@ defmodule Creek.ExampleCtmPar do
   fragment mapper as map(
                        fn x ->
                          IO.puts(x)
-                         Process.sleep(1000)
+                         Process.sleep(5000)
                          x
                        end,
                        parallel: 5

@@ -48,10 +48,6 @@ defmodule Creek.Runtime.Meta.Default do
 
   defdag source(src, snk) do
     src
-    ~> map(fn x ->
-      IO.puts("Meta source event: #{inspect(x)}")
-      x
-    end)
     ~> dup(2)
     ~> (init_src() ||| tick())
     ~> merge(2)

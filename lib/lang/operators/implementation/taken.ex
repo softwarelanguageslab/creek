@@ -3,6 +3,7 @@ defmodule Creek.Operator.TakeN do
     case n do
       1 ->
         {0, :final, value}
+
       n ->
         {n - 1, :next, value}
     end

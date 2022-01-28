@@ -20,14 +20,14 @@ defmodule Creek.Funnel do
     sub = Creek.Source.subj()
     sink = Creek.Sink.ignore(self())
 
-    IO.inspect sub, label: "sub"
+    IO.inspect(sub, label: "sub")
     # Deploy a DAG to print out all the values coming from
     # the subject.
-    deploy(print_funnel, [src: sub.source, snk: sink])
+    deploy(print_funnel, src: sub.source, snk: sink)
 
     for i <- 1..10 do
       src = Creek.Source.single(i)
-      deploy(send_to_funnel, [src: src, snk: sub.sink.()])
+      deploy(send_to_funnel, src: src, snk: sub.sink.())
     end
 
     receive do

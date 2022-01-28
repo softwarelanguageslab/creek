@@ -13,7 +13,7 @@ defmodule Creek.Source.Subject do
       ###############
       # Bookkeeping #
       ###############
-      {:offer_meta, _} ->
+      {:offer_meta, _, _} ->
         source_loop(node, downstreams, state)
 
       {:add_downstream, downstream} ->

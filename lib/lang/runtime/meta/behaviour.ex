@@ -9,11 +9,11 @@ defmodule Creek.MetaBehaviour do
                            {p, :tick} ->
                              {p, p.node.impl.tick(p.node, p.state)}
 
-                           {p, :next, value, _from} ->
-                             {p, p.node.impl.next(p.node, p.state, p.gate, value)}
+                           {p, :next, value, from} ->
+                             {p, p.node.impl.next(p.node, p.state, p.gate, value), from}
 
-                           {p, :complete} ->
-                             {p, p.node.impl.complete(p.node, p.state)}
+                           {p, :complete, from} ->
+                             {p, p.node.impl.complete(p.node, p.state), from}
 
                            {p, :init_opr} ->
                              {p, {p.state, :ok}}
@@ -32,19 +32,23 @@ defmodule Creek.MetaBehaviour do
       fragment effects(
                  as map(fn result ->
                       case result do
-                        {p, {state, :next, value}} ->
+                        {p, {state, :next, value}, from} ->
                           effects_next(value, p.ds, p.pid)
                           {%{p | state: state}, :ok}
 
-                        {p, {state, :skip}} ->
+                        {p, {state, :skip}, from} ->
+                          {%{p | state: state}, :ok}
+
+                        {p, {state, :complete}, from} ->
+                          effects_complete(nil, p.ds, p.us, p.pid)
                           {%{p | state: state}, :ok}
 
                         {p, {state, :complete}} ->
                           effects_complete(nil, p.ds, p.us, p.pid)
                           {%{p | state: state}, :ok}
 
-                        {p, {state, :continue}} ->
-                          us = Enum.filter(p.us, &(&1 != p.from))
+                        {p, {state, :continue}, from} ->
+                          us = Enum.filter(p.us, &(&1 != from))
                           effects_continue(p.ds, us, p.pid)
                           {%{p | us: us, state: state}, :ok}
 
@@ -53,6 +57,9 @@ defmodule Creek.MetaBehaviour do
                           {%{p | state: state}, :ok}
 
                         {p, {state, :ok}} ->
+                          {%{p | state: state}, :ok}
+
+                        {p, {state, :ok}, _from} ->
                           {%{p | state: state}, :ok}
 
                         {p, {state, :tick, value}} ->

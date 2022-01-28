@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+  <meta name="generator" content="Hugo 0.84.0">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>">
+  <title>Anabranch Debugger</title>
+  <!-- Bootstrap core CSS -->
+  <link rel="stylesheet" href="../assets/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="../assets/css/codemirror.css" />
+  <!-- Custom styles for this template -->
+</head>
+
+<body>
+  <div id="socket_off">🟢</div>
+  <div id="socket_on">🔴</div>
+  <div class="col-lg-12 mx-auto p-3 py-md-5">
+    <!-- Header -->
+    <header class="d-flex align-items-center pb-2 mb-2 border-bottom">
+      <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="32" class="me-2" viewBox="0 0 100 100" role="img">
+          <text y=".9em" font-size="90">🌊</text>
+        </svg>
+        <span class="fs-4">Debugger</span>
+      </a>
+    </header>
+
+    <!-- Main -->
+    <main>
+
+      <div class="row">
+        <div class="col-12">
+          <p id="streamlist">
+          </p>
+        </div>
+      </div>
+
+      <!-- Graph -->
+      <div class="row">
+        <div class="col-12 col-md-4 col-lg-4 p-3">
+          <div class="box">
+            <div id="mynetwork"></div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-8 col-lg-8">
+          <div class="row">
+            <div class="col-12 col-md-4 col-lg-4 p-3">
+              <div class="box">
+                <ul class="list-group list-group-flush" id="node_data" style="display:none;">
+                  <li class="list-group-item">Node: <span class="field" id="node_id"></span></li>
+                  <li class="list-group-item">Process: <span class="field" id="node_pid"></span></li>
+                  <li class="list-group-item">Name: <span class="field" id="node_name"></span></li>
+                  <li class="list-group-item">Arity: <span class="field" id="node_arity"></span></li>
+                </ul>
+                <ul class="list-group list-group-flush" id="edge_data" style="display:none;">
+                  <li class="list-group-item">Edge: <span id="edge_id"></span></li>
+                  <li class="list-group-item">Label: <span id="edge_label"></span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-8 col-lg-8 p-3">
+              <div class="box p-3">
+                <div class="row" id="history" style="display:none;">
+                  <div class="col-4 text-right">
+                    <p style="text-align: center;">➡️</p>
+                    <ul class="vals" id="in">
+                    </ul>
+                  </div>
+                  <div class="col-8">
+                    <p>➡️</p>
+                    <ul class="vals" id="out">
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 p-3">
+              <div class="box">
+                <ul class="list-group list-group-flush" id="node_data2" style="display:none;">
+                  <li class="list-group-item">State:
+                    <textarea id='editor'>#no content </textarea>
+                    <button type="button" id="updateArgButton" class="btn btn-primary" style="margin: 2px;">Update</button>
+                  </li>
+                  <li class="list-group-item">Arguments:
+                    <textarea id='editor2'>#no content </textarea>
+                  </li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+
+
+    </main>
+
+
+    <!-- Footer -->
+    <footer class="pt-5 my-5 text-muted border-top">
+      Anabranch Debugger, Christophe De Troyer
+    </footer>
+
+  </div>
+  <script src="../assets/js/vis-network.js"></script>
+  <script src="../assets/js/codemirror.js"></script>
+  <script src="../assets/js/ruby.js"></script>
+  <script src="main.js"></script>
+
+
+</body>
+
+</html>

@@ -1,11 +1,15 @@
+
+
 defmodule Creek.Runtime.Process do
   require Logger
+
 
   defstruct pid: nil, ref: nil
 
   def new(pid, ref) do
     %Creek.Runtime.Process{pid: pid, ref: ref}
   end
+
 
   ##############################################################################
   # Logging
@@ -67,11 +71,11 @@ defmodule Creek.Runtime.Process do
       ###############
       # Bookkeeping #
       ###############
-      {:offer_meta, meta_dag} ->
+      {:offer_meta, meta_dag, args} ->
         if meta_dag != nil do
           source = Creek.Source.subject("meta subject")
           sink = Creek.Sink.tap(self())
-          Creek.Runtime.run(meta_dag, src: source, snk: sink)
+          Creek.Runtime.run(meta_dag, [src: source, snk: sink] ++ args, meta: true)
           node = %{node | meta: source}
           source_loop(node, downstreams, state, meta_state)
         else
@@ -216,7 +220,10 @@ defmodule Creek.Runtime.Process do
       # We spawn the META graph of this process.
       source = Creek.Source.subject("meta subject")
       sink = Creek.Sink.tap(self())
-      Creek.Runtime.run(node.meta, src: source, snk: sink)
+      inject_tap = Creek.Sink.tap(self())
+      Creek.Runtime.run(node.meta, [src: source, snk: sink] ++ node.meta_sink, meta: true)
+      IO.inspect "Injector subject: #{inspect node.meta_in}"
+      Creek.Runtime.run(Proxy.proxy, [src: node.meta_in] ++ [snk: inject_tap], meta: true)
       process_loop(%{node | meta: source}, upstreams, downstreams, node.arg, nil)
     else
       # log_meta("Starting operator without meta-runtime")
@@ -262,7 +269,6 @@ defmodule Creek.Runtime.Process do
       #################
       {:meta_message, m, from} ->
         # debug_meta(("OPR: (#{node.name}) Direct Meta Message :: #{inspect(m)}")
-
         if node.meta != nil do
           source = node.meta
           # ref = make_ref()()
@@ -273,7 +279,7 @@ defmodule Creek.Runtime.Process do
           receive do
             {p = %{}, :ok} ->
               # debug_meta(("OPR :: METAM :: Meta Out ::#{inspect(ref)}")
-              process_loop(node, p.us, p.ds, p.state, p.meta_state)
+              process_loop(p.node, p.us, p.ds, p.state, p.meta_state)
           after
             1000 ->
               raise "OPR :: Timeout waiting for meta-level response to meta message #{inspect(m)}."
@@ -353,52 +359,54 @@ defmodule Creek.Runtime.Process do
         # log("OPR: Received complete from, #{inspect(from_pid)} @ gate #{inspect(to_gate)}")
 
         # if Enum.count(upstreams) < 2 do
-          if node.meta != nil do
-            source = node.meta
-            # ref = make_ref()()
-            meta_event = {%{meta_state: meta_state, pid: self(), state: state, gate: to_gate, node: node, us: upstreams, ds: downstreams}, :complete}
-            # log_meta("OPR :: COMP :: Meta In  ::#{inspect(ref)}")
-            Creek.Source.Subject.next(source, meta_event)
+        if node.meta != nil do
+          source = node.meta
+          # ref = make_ref()()
+          meta_event = {%{meta_state: meta_state, pid: self(), state: state, gate: to_gate, node: node, us: upstreams, ds: downstreams}, :complete, from}
+          # log_meta("OPR :: COMP :: Meta In  ::#{inspect(ref)}")
+          Creek.Source.Subject.next(source, meta_event)
 
-            receive do
-              {p = %{}, :ok} ->
-                # log_meta("OPR :: COMP :: Meta Out ::#{inspect(ref)}")
-                process_loop(node, p.us, p.ds, p.state, p.meta_state)
-            after
-              1000 ->
-                raise "OPR :: Timeout waiting for meta-level response to complete meta}."
-            end
-          else
-            response = node.impl.complete(node, state)
-
-            case response do
-              # The operator really wants to quit, even though other upstreams are stil alive.
-              {state, :complete} ->
-                send_self({:finish})
-                effects_complete(from, downstreams, upstreams, self())
-                process_loop(node, upstreams, downstreams, state, meta_state)
-
-              # The operator goes on without the completed upstream.
-              # If it is the only upstream the complete is sent down.
-              {state, :continue} ->
-                # Remove the upstream, as it has completed.
-                upstreams = Enum.filter(upstreams, &(&1 != {from_pid, from_gate, to_gate}))
-                effects_continue(downstreams, upstreams, self())
-                process_loop(node, upstreams, downstreams, state, meta_state)
-
-              r ->
-                err("OPR: Complete callback returned invalid response #{inspect(r)}")
-                process_loop(node, upstreams, downstreams, state, meta_state)
-            end
+          receive do
+            {p = %{}, :ok} ->
+              # log_meta("OPR :: COMP :: Meta Out ::#{inspect(ref)}")
+              process_loop(node, p.us, p.ds, p.state, p.meta_state)
+          after
+            1000 ->
+              raise "OPR :: Timeout waiting for meta-level response to complete meta}."
           end
-        # else
-          # upstreams = Enum.filter(upstreams, &(&1 != {from_pid, from_gate, to_gate}))
-          # process_loop(node, upstreams, downstreams, state, meta_state)
-        # end
+        else
+          response = node.impl.complete(node, state)
+
+          case response do
+            # The operator really wants to quit, even though other upstreams are stil alive.
+            {state, :complete} ->
+              send_self({:finish})
+              effects_complete(from, downstreams, upstreams, self())
+              process_loop(node, upstreams, downstreams, state, meta_state)
+
+            # The operator goes on without the completed upstream.
+            # If it is the only upstream the complete is sent down.
+            {state, :continue} ->
+              # Remove the upstream, as it has completed.
+              upstreams = Enum.filter(upstreams, &(&1 != {from_pid, from_gate, to_gate}))
+              effects_continue(downstreams, upstreams, self())
+              process_loop(node, upstreams, downstreams, state, meta_state)
+
+            r ->
+              err("OPR: Complete callback returned invalid response #{inspect(r)}")
+              process_loop(node, upstreams, downstreams, state, meta_state)
+          end
+        end
+
+      # else
+      # upstreams = Enum.filter(upstreams, &(&1 != {from_pid, from_gate, to_gate}))
+      # process_loop(node, upstreams, downstreams, state, meta_state)
+      # end
 
       m ->
-        nil
-        # warn("OPR: Message not understood: #{inspect(m)}")
+        warn("OPR: Message not understood: #{inspect(m)}")
+        process_loop(node, upstreams, downstreams, state, meta_state)
+
     end
   end
 
@@ -411,7 +419,7 @@ defmodule Creek.Runtime.Process do
       # We spawn the META graph of this process.
       source = Creek.Source.subject("meta subject")
       sink = Creek.Sink.tap(self())
-      Creek.Runtime.run(node.meta, src: source, snk: sink)
+      Creek.Runtime.run(node.meta, [src: source, snk: sink], meta: true)
       sink_loop(%{node | meta: source}, upstreams, node.arg, nil)
     else
       sink_loop(node, upstreams, node.arg, nil)
@@ -424,11 +432,11 @@ defmodule Creek.Runtime.Process do
       # Bookkeeping #
       ###############
 
-      {:offer_meta, meta_dag} ->
+      {:offer_meta, meta_dag, args} ->
         if meta_dag != nil do
           source = Creek.Source.subject("meta subject")
           sink = Creek.Sink.tap(self())
-          Creek.Runtime.run(meta_dag, src: source, snk: sink)
+          Creek.Runtime.run(meta_dag, [src: source, snk: sink] ++ args)
           node = %{node | meta: source}
           sink_loop(node, upstreams, state, meta_state)
         else
@@ -527,13 +535,13 @@ defmodule Creek.Runtime.Process do
           end
         end
 
-      {:complete, from = {from_pid, _from_gate, to_gate}} ->
+      {:complete, from = {_from_pid, _from_gate, to_gate}} ->
         # log("SNK: Received complete from, #{inspect(from_pid)} at gate #{to_gate}")
 
         if node.meta != nil do
           source = node.meta
           # ref = make_ref()()
-          meta_event = {%{meta_state: meta_state, pid: self(), state: state, gate: to_gate, node: node, us: upstreams, ds: []}, :complete}
+          meta_event = {%{meta_state: meta_state, pid: self(), state: state, gate: to_gate, node: node, us: upstreams, ds: []}, :complete, from}
           # log_meta("SNK :: COMP :: Meta In  ::#{inspect(ref)}")
           Creek.Source.Subject.next(source, meta_event)
 

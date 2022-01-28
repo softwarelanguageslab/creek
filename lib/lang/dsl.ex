@@ -115,6 +115,20 @@ defmodule Creek.DSL do
     end
   end
 
+
+  defmacro dag({name, _, [{:as, _, [exp]}]}) do
+    quote do
+      def unquote(name)() do
+        Operator.ensure_dag(unquote(exp))
+      end
+    end
+  end
+  defmacro let({name, _, [{:as, _, [exp]}]}) do
+    quote do
+      var!(unquote(Macro.var(name, __MODULE__))) = fn -> unquote(exp) end
+    end
+  end
+
   defmacro deploy(dagfunc, args, opts \\ []) do
     {f_atom, _, _} = dagfunc
 
@@ -133,8 +147,6 @@ defmodule Creek.DSL do
   # defmacro deploy(dagfunc, args) do
   #   deploy(dagfunc, args, [])
   # end
-
-
 
   defmacro dag({name, _, args}, do: exp) do
     # Each parameter is reassigned to a dummy operator.
@@ -404,7 +416,33 @@ defmodule Creek.DSL do
   end
 
   def idag_l ||| idag_r do
-    GatedDag.merge_dags(idag_l |> Operator.ensure_dag(), idag_r |> Operator.ensure_dag())
+    dag_r =
+      idag_r
+      |> Operator.ensure_dag()
+      |> GatedDag.map_vertices(fn v ->
+        case v do
+          %Creek.Operator{name: "dummy"} ->
+            %{v | ref: Creek.Server.gen_sym()}
+
+          _ ->
+            v
+        end
+      end)
+
+    dag_l =
+      idag_l
+      |> Operator.ensure_dag()
+      |> GatedDag.map_vertices(fn v ->
+        case v do
+          %Creek.Operator{name: "dummy"} ->
+            %{v | ref: Creek.Server.gen_sym()}
+
+          _ ->
+            v
+        end
+      end)
+
+    GatedDag.merge_dags(dag_l, dag_r)
   end
 
   ##############################################################################

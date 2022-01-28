@@ -6,7 +6,7 @@ defmodule Creek.FactorialInline do
   @spec main :: any
   def main() do
     d =
-       dag test(src, snk) do
+      dag test(src, snk) do
         src
         ~> transform(1, fn v, acc -> {acc * v, acc * v} end)
         ~> snk
@@ -20,6 +20,5 @@ defmodule Creek.FactorialInline do
     ivar
     |> Ivar.get()
     |> IO.inspect()
-
   end
 end

@@ -7,6 +7,7 @@ defmodule Creek.Source.Range do
       if delay > 0 do
         Process.sleep(delay)
       end
+
       {{a + stepsize, b, stepsize, delay}, :tick, a}
     else
       {state, :complete}

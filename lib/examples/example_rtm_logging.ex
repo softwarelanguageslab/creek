@@ -22,7 +22,8 @@ defmodule Creek.ExampleRtmLogging do
     sink = Creek.Sink.all(ivar)
 
     # Creek.Runtime.run(test(), [src: source, snk: sink], dot: true, debug: true)
-    Creek.Runtime.run(logged_dag(), [ left: l, right: r, snk: sink], dot: true)
+    Creek.Runtime.run(logged_dag(), [left: l, right: r, snk: sink], dot: true)
+
     ivar
     |> Ivar.get()
     |> IO.inspect()

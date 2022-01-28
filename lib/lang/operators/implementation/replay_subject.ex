@@ -2,6 +2,7 @@ defmodule Creek.Source.ReplaySubject do
   def next(subj, value) do
     send(subj, {:next, value})
   end
+
   def complete(subj) do
     send(subj, {:complete})
   end
@@ -15,7 +16,7 @@ defmodule Creek.Source.ReplaySubject do
       ###############
       # Bookkeeping #
       ###############
-      {:offer_meta, _} ->
+      {:offer_meta, _, _} ->
         source_loop(node, downstreams, previous, replayed)
 
       {:add_downstream, downstream} ->

@@ -1,6 +1,6 @@
 defmodule Creek.Operator do
   import Creek.DSL
-  defstruct opts: [], arg: nil, name: nil, ref: nil, in: 0, out: 0, label: "", impl: nil, meta: nil, type: nil
+  defstruct opts: [], arg: nil, name: nil, ref: nil, in: 0, out: 0, label: "", impl: nil, meta: nil, type: nil, meta_sink: [], meta_in: []
 
   alias __MODULE__
 
