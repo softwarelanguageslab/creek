@@ -1,23 +1,24 @@
 defmodule Creek.Operator do
-  import Creek.DSL
+  # import Creek.DSL
+
   defstruct opts: [], arg: nil, name: nil, ref: nil, in: 0, out: 0, label: "", impl: nil, meta: nil, type: nil, meta_sink: [], meta_in: []
 
   alias __MODULE__
 
   def map(f, opts \\ []) do
-    %Operator{opts: opts, type: :operator, arg: f, name: "map", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Map}
+    %Creek.Operator{opts: opts, type: :operator, arg: f, name: "map", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Map}
   end
 
   def take(n, opts \\ []) do
-    %Operator{opts: opts, type: :operator, arg: n, name: "take-#{inspect(n)}", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.TakeN}
+    %Creek.Operator{opts: opts, type: :operator, arg: n, name: "take-#{inspect(n)}", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.TakeN}
   end
 
   def filter(f, opts \\ []) do
-    %Operator{opts: opts, type: :operator, arg: f, name: "filter", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Filter}
+    %Creek.Operator{opts: opts, type: :operator, arg: f, name: "filter", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Filter}
   end
 
   def debug() do
-    %Operator{
+    %Creek.Operator{
       opts: [],
       type: :operator,
       arg: fn x ->
@@ -33,7 +34,7 @@ defmodule Creek.Operator do
   end
 
   def zip(opts \\ []) do
-    %Operator{
+    %Creek.Operator{
       type: :operator,
       arg: %{0 => [], 1 => []},
       name: "zip",
@@ -45,7 +46,7 @@ defmodule Creek.Operator do
   end
 
   def zipLatest(opts \\ []) do
-    %Operator{
+    %Creek.Operator{
       type: :operator,
       arg: %{0 => nil, 1 => nil},
       name: "zipLatest",
@@ -57,7 +58,7 @@ defmodule Creek.Operator do
   end
 
   def zipRight(opts \\ []) do
-    %Operator{
+    %Creek.Operator{
       type: :operator,
       arg: %{0 => [], 1 => []},
       name: "zipLatest",
@@ -69,7 +70,7 @@ defmodule Creek.Operator do
   end
 
   def fold(proc, init \\ nil) do
-    %Operator{
+    %Creek.Operator{
       type: :operator,
       arg: {proc, init},
       name: "fold",
@@ -84,9 +85,8 @@ defmodule Creek.Operator do
     merge(n, [])
   end
 
-  @spec merge(any, any) :: %Creek.Operator{arg: %{0 => [], 1 => []}, impl: Creek.Operator.Merge, in: any, label: <<>>, meta: nil, name: <<_::40>>, opts: any, out: 1, ref: any, type: :operator}
   def merge(n, opts) do
-    %Operator{
+    %Creek.Operator{
       opts: opts,
       type: :operator,
       arg: %{0 => [], 1 => []},
@@ -103,46 +103,46 @@ defmodule Creek.Operator do
   end
 
   def dup(n, opts) do
-    %Operator{opts: opts, type: :operator, arg: nil, name: "dup", ref: Creek.Server.gen_sym(), in: 1, out: n, impl: Creek.Operator.Dup}
+    %Creek.Operator{opts: opts, type: :operator, arg: nil, name: "dup", ref: Creek.Server.gen_sym(), in: 1, out: n, impl: Creek.Operator.Dup}
   end
 
-  def balance(n \\ 2) do
-    balance(n, [])
-  end
+  # def balance(n \\ 2) do
+  #   balance(n, [])
+  # end
 
-  def balance(n, opts) do
-    filters =
-      1..(n - 1)
-      |> Enum.reduce(filter(fn {tag, _v} -> tag == 0 end) ~> map(fn {_tag, v} -> v end), fn i, acc ->
-        op = filter(fn {tag, _v} -> tag == i end) ~> map(fn {_tag, v} -> v end)
-        acc ||| op
-      end)
+  # def balance(n, opts) do
+  #   filters =
+  #     1..(n - 1)
+  #     |> Enum.reduce(filter(fn {tag, _v} -> tag == 0 end) ~> map(fn {_tag, v} -> v end), fn i, acc ->
+  #       op = filter(fn {tag, _v} -> tag == i end) ~> map(fn {_tag, v} -> v end)
+  #       acc ||| op
+  #     end)
 
-    op =
-      transform(0, fn x, state ->
-        tag = rem(state + 1, n)
-        {tag, {tag, x}}
-      end)
-      ~> dup(n)
-      ~> filters
+  #   op =
+  #     transform(0, fn x, state ->
+  #       tag = rem(state + 1, n)
+  #       {tag, {tag, x}}
+  #     end)
+  #     ~> dup(n)
+  #     ~> filters
 
-    op
-  end
+  #   op
+  # end
 
   def transform(state, proc, opts \\ []) do
-    %Operator{opts: opts, type: :operator, arg: {state, proc}, name: "transform", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Transform}
+    %Creek.Operator{opts: opts, type: :operator, arg: {state, proc}, name: "transform", ref: Creek.Server.gen_sym(), in: 1, out: 1, impl: Creek.Operator.Transform}
   end
 
   def dummy(name) do
-    %Operator{type: :operator, arg: nil, name: "dummy", label: name, ref: Creek.Server.gen_sym(), in: 1, out: 1}
+    %Creek.Operator{type: :operator, arg: nil, name: "dummy", label: name, ref: Creek.Server.gen_sym(), in: 1, out: 1}
   end
 
   def actor_src() do
-    %Operator{type: :actor_source, arg: nil, name: "actor_src", ref: Creek.Server.gen_sym(), in: 0, out: 1}
+    %Creek.Operator{type: :actor_source, arg: nil, name: "actor_src", ref: Creek.Server.gen_sym(), in: 0, out: 1}
   end
 
   def actor_snk() do
-    %Operator{type: :actor_sink, arg: nil, name: "actor_snk", ref: Creek.Server.gen_sym(), in: 1, out: 0}
+    %Creek.Operator{type: :actor_sink, arg: nil, name: "actor_snk", ref: Creek.Server.gen_sym(), in: 1, out: 0}
   end
 
   ##############################################################################

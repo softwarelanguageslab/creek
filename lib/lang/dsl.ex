@@ -1,5 +1,4 @@
 defmodule Creek.DSL do
-  alias Creek.{Operator}
 
   ##############################################################################
   # Macros for Meta
@@ -110,7 +109,7 @@ defmodule Creek.DSL do
   defmacro fragment({name, _, [{:as, _, [exp]}]}) do
     quote do
       def unquote(name)() do
-        Operator.ensure_dag(unquote(exp))
+        Creek.Operator.ensure_dag(unquote(exp))
       end
     end
   end
@@ -119,7 +118,7 @@ defmodule Creek.DSL do
   defmacro dag({name, _, [{:as, _, [exp]}]}) do
     quote do
       def unquote(name)() do
-        Operator.ensure_dag(unquote(exp))
+        Creek.Operator.ensure_dag(unquote(exp))
       end
     end
   end
@@ -149,14 +148,14 @@ defmodule Creek.DSL do
   # end
 
   defmacro dag({name, _, args}, do: exp) do
-    # Each parameter is reassigned to a dummy operator.
+    # Each parameter is reassigned to a dummy Creek.Operator.
     # These are replaced in the end when its known weather they are a source or sink.
     dummy_assigns =
       args
       |> Enum.map(fn {name, _, _} -> name end)
       |> Enum.map(fn var ->
         quote do
-          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          dum = dummy(unquote(var)) |> Creek.Operator.ensure_dag()
           original_value = var!(consts) |> Map.get(unquote(var))
           var!(unquote(Macro.var(var, __MODULE__))) = dum
         end
@@ -167,7 +166,7 @@ defmodule Creek.DSL do
       |> Enum.map(fn {name, _, _} -> name end)
       |> Enum.map(fn var ->
         quote do
-          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          dum = dummy(unquote(var)) |> Creek.Operator.ensure_dag()
           original_value = var!(consts) |> Map.get(unquote(var))
 
           var!(unquote(Macro.var(var, __MODULE__))) =
@@ -279,14 +278,14 @@ defmodule Creek.DSL do
   end
 
   defmacro defdag({name, _, args}, do: exp) do
-    # Each parameter is reassigned to a dummy operator.
+    # Each parameter is reassigned to a dummy Creek.Operator.
     # These are replaced in the end when its known weather they are a source or sink.
     dummy_assigns =
       args
       |> Enum.map(fn {name, _, _} -> name end)
       |> Enum.map(fn var ->
         quote do
-          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          dum = dummy(unquote(var)) |> Creek.Operator.ensure_dag()
           original_value = var!(consts) |> Map.get(unquote(var))
           var!(unquote(Macro.var(var, __MODULE__))) = dum
         end
@@ -297,7 +296,7 @@ defmodule Creek.DSL do
       |> Enum.map(fn {name, _, _} -> name end)
       |> Enum.map(fn var ->
         quote do
-          dum = dummy(unquote(var)) |> Operator.ensure_dag()
+          dum = dummy(unquote(var)) |> Creek.Operator.ensure_dag()
           original_value = var!(consts) |> Map.get(unquote(var))
 
           var!(unquote(Macro.var(var, __MODULE__))) =
@@ -412,13 +411,13 @@ defmodule Creek.DSL do
   # User-facing functions
 
   def idag_l ~> idag_r do
-    GatedDag.link_dags(idag_l |> Operator.ensure_dag(), idag_r |> Operator.ensure_dag())
+    GatedDag.link_dags(idag_l |> Creek.Operator.ensure_dag(), idag_r |> Creek.Operator.ensure_dag())
   end
 
   def idag_l ||| idag_r do
     dag_r =
       idag_r
-      |> Operator.ensure_dag()
+      |> Creek.Operator.ensure_dag()
       |> GatedDag.map_vertices(fn v ->
         case v do
           %Creek.Operator{name: "dummy"} ->
@@ -431,7 +430,7 @@ defmodule Creek.DSL do
 
     dag_l =
       idag_l
-      |> Operator.ensure_dag()
+      |> Creek.Operator.ensure_dag()
       |> GatedDag.map_vertices(fn v ->
         case v do
           %Creek.Operator{name: "dummy"} ->
@@ -465,7 +464,7 @@ defmodule Creek.DSL do
     dummies =
       GatedDag.vertices(gdag)
       |> Enum.filter(fn operator ->
-        operator.name == "dummy"
+        Creek.Operator.name == "dummy"
       end)
 
     dag =
@@ -474,13 +473,13 @@ defmodule Creek.DSL do
         case {GatedDag.edges_from(gdag, dummy), GatedDag.edges_to(gdag, dummy)} do
           # Source actor has no incoming edges, and one outgoing.
           {[{from, _idxf, to, idxt}], []} ->
-            v = Creek.Operator.actor_src() |> Map.put(:label, from.label)
+            v = Creek.Creek.Operator.actor_src() |> Map.put(:label, from.label)
             gdag = GatedDag.del_vertex(gdag, from)
             gdag = GatedDag.add_vertex(gdag, v, 0, 1)
             GatedDag.add_edge(gdag, v, 0, to, idxt)
 
           {[], [{from, idxf, to, _idxt}]} ->
-            v = Creek.Operator.actor_snk() |> Map.put(:label, to.label)
+            v = Creek.Creek.Operator.actor_snk() |> Map.put(:label, to.label)
             gdag = GatedDag.del_vertex(gdag, to)
             gdag = GatedDag.add_vertex(gdag, v, 1, 0)
             GatedDag.add_edge(gdag, from, idxf, v, 0)
