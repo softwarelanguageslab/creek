@@ -33,6 +33,14 @@ defmodule Creek.Source do
     end)
   end
 
+  def replay_subject(description \\ "") do
+    o = %Operator{type: :source, arg: nil, name: "replay subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.ReplaySubject}
+
+    spawn(fn ->
+      Creek.Source.ReplaySubject.source(o, [])
+    end)
+  end
+
   def subj(description \\ "") do
     o = %Operator{type: :source, arg: nil, name: "subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Subject}
 
