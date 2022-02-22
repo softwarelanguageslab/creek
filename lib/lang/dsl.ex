@@ -464,7 +464,7 @@ defmodule Creek.DSL do
     dummies =
       GatedDag.vertices(gdag)
       |> Enum.filter(fn operator ->
-        Creek.Operator.name == "dummy"
+        operator.name == "dummy"
       end)
 
     dag =
@@ -473,13 +473,13 @@ defmodule Creek.DSL do
         case {GatedDag.edges_from(gdag, dummy), GatedDag.edges_to(gdag, dummy)} do
           # Source actor has no incoming edges, and one outgoing.
           {[{from, _idxf, to, idxt}], []} ->
-            v = Creek.Creek.Operator.actor_src() |> Map.put(:label, from.label)
+            v = Creek.Operator.actor_src() |> Map.put(:label, from.label)
             gdag = GatedDag.del_vertex(gdag, from)
             gdag = GatedDag.add_vertex(gdag, v, 0, 1)
             GatedDag.add_edge(gdag, v, 0, to, idxt)
 
           {[], [{from, idxf, to, _idxt}]} ->
-            v = Creek.Creek.Operator.actor_snk() |> Map.put(:label, to.label)
+            v = Creek.Operator.actor_snk() |> Map.put(:label, to.label)
             gdag = GatedDag.del_vertex(gdag, to)
             gdag = GatedDag.add_vertex(gdag, v, 1, 0)
             GatedDag.add_edge(gdag, from, idxf, v, 0)
