@@ -4,18 +4,18 @@ defmodule Creek.App do
   @impl true
   def start(_type, _args) do
     children = [
-      Plug.Cowboy.child_spec(
-        scheme: :http,
-        plug: Creek.Debugger.Router,
-        options: [
-          dispatch: dispatch(),
-          port: 4000
-        ]
-      ),
-      Registry.child_spec(
-        keys: :duplicate,
-        name: Registry.Creek.DebuggerApp
-      ),
+      # Plug.Cowboy.child_spec(
+      #   scheme: :http,
+      #   plug: Creek.Debugger.Router,
+      #   options: [
+      #     dispatch: dispatch(),
+      #     port: 4000
+      #   ]
+      # ),
+      # Registry.child_spec(
+      #   keys: :duplicate,
+      #   name: Registry.Creek.DebuggerApp
+      # ),
       {Phoenix.PubSub, name: Creek.PubSub},
       Creek.Server
     ]

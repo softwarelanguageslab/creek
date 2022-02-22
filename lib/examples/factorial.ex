@@ -1,7 +1,7 @@
 defmodule Creek.Factorial do
   use Creek
   # meta(Merge)
-  execution(Debugging)
+  # execution(Debugging)
 
   defdag test(src, snk) do
     src
