@@ -313,7 +313,7 @@ defmodule Creek.DSL do
     quote do
       # (unquote_splicing(args)) do
       def unquote(name)(var!(unquote(Macro.var(:consts, nil))) \\ %{}) do
-        # var!(unquote(Macro.var(:dummies, nil))) = %{}
+        var!(unquote(Macro.var(:dummies, nil))) = %{}
         name = inspect(Atom.to_string(__MODULE__) <> "." <> Atom.to_string(unquote(name)) <> "/#{unquote(reassignments_total)}")
 
         # Check if the DAG has been compiled yet.
