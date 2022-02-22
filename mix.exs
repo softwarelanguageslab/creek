@@ -23,11 +23,11 @@ defmodule Creek.MixProject do
   defp deps do
     [
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
-      {:mutable_graph, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/libmutablegraph.git", branch: "master"},
+      {:mutable_graph, git: "git@gitlab.soft.vub.ac.be:cdetroye/libmutablegraph.git", branch: "master"},
       # {:mutable_graph, path: "/home/christophe/code/libmutablegraph"},
-      {:gated_dag, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/gated-dag.git", branch: "master"},
+      {:gated_dag, git: "git@gitlab.soft.vub.ac.be:cdetroye/gated-dag.git", branch: "master"},
       # {:gated_dag, path: "/home/christophe/code/gated-dag"},
-      {:ivar, git: "ssh://christophe@call-cc.be:/home/christophe/repositories/Ivar.git", branch: "master"},
+      {:ivar, git: "git@gitlab.soft.vub.ac.be:cdetroye/ivar.git", branch: "master"},
       {:benchee, "~> 1.0", only: :dev},
       {:cowboy, "~> 2.9"},
       {:plug, "~> 1.12.1"},
