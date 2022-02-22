@@ -4,7 +4,7 @@ defmodule Creek.ExampleRtmPull do
 
   """
   use Creek
-  execution(Pull)
+  execution(SmartPull)
 
   fragment mapper as filter(fn y -> rem(y, 2) == 0 end)
                      ~> map(fn x ->

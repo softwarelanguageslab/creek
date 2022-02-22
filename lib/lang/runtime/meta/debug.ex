@@ -99,27 +99,27 @@ defmodule Debugging do
   fragment snk_default as filter(&(not match?({_, :next, _, _}, &1)))
                           ~> default
 
-  defdag operator(src, snk) do
-    src
+  defdag operator(srco, snko) do
+    srco
     ~> dup(3)
     ~> (opr_next ||| opr_default ||| opr_complete)
     ~> merge(3)
-    ~> snk
+    ~> snko
   end
 
-  defdag source(src, snk) do
-    src
+  defdag source(srcsrc, snksrc) do
+    srcsrc
     ~> dup()
     ~> (source_tick ||| src_default)
     ~> merge()
-    ~> snk
+    ~> snksrc
   end
 
-  defdag sink(src, snk) do
-    src
+  defdag sink(srcs, snks) do
+    srcs
     ~> dup(3)
     ~> (opr_next ||| opr_default ||| opr_complete)
     ~> merge(3)
-    ~> snk
+    ~> snks
   end
 end

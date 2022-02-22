@@ -1,15 +1,11 @@
-
-
 defmodule Creek.Runtime.Process do
   require Logger
-
 
   defstruct pid: nil, ref: nil
 
   def new(pid, ref) do
     %Creek.Runtime.Process{pid: pid, ref: ref}
   end
-
 
   ##############################################################################
   # Logging
@@ -222,8 +218,12 @@ defmodule Creek.Runtime.Process do
       sink = Creek.Sink.tap(self())
       inject_tap = Creek.Sink.tap(self())
       Creek.Runtime.run(node.meta, [src: source, snk: sink] ++ node.meta_sink, meta: true)
-      IO.inspect "Injector subject: #{inspect node.meta_in}"
-      Creek.Runtime.run(Proxy.proxy, [src: node.meta_in] ++ [snk: inject_tap], meta: true)
+      IO.inspect("Injector subject: #{inspect(node.meta_in)}")
+
+      if node.meta_in != [] do
+        Creek.Runtime.run(Proxy.proxy(), [src: node.meta_in] ++ [snk: inject_tap], meta: true)
+      end
+
       process_loop(%{node | meta: source}, upstreams, downstreams, node.arg, nil)
     else
       # log_meta("Starting operator without meta-runtime")
@@ -406,7 +406,6 @@ defmodule Creek.Runtime.Process do
       m ->
         warn("OPR: Message not understood: #{inspect(m)}")
         process_loop(node, upstreams, downstreams, state, meta_state)
-
     end
   end
 

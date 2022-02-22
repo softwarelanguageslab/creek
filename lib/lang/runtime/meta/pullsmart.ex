@@ -29,14 +29,14 @@ defmodule SmartPull do
                          {%{p | meta_state: meta_state}, :next, v, from}
                        end)
                        ~> base()
-                       ~> map(fn {p, base_response} ->
+                       ~> map(fn {p, base_response, from} ->
                          if match?({_, :skip}, base_response) do
                            demanded = p.meta_state
                            to_demand = p.us |> Enum.filter(&(not MapSet.member?(demanded, &1)))
                            propagate_upstream_meta(:demand, to_demand, p.pid)
                          end
 
-                         {p, base_response}
+                         {p, base_response,from}
                        end)
                        ~> effects()
 
