@@ -5,7 +5,7 @@
   end
 
   def complete(subj) do
-    send(subj, {:complete, self()})
+    send(subj, {:complete, nil})
   end
 
   def gatherer(node, downstreams, upstreams) do
@@ -65,9 +65,14 @@
       {:complete, from} ->
         # A gatherer does not complete hen all its upstreams are finished.
         # It only finishes if al lits downstreams are finished.
-        log("GATHERER: Complete!")
-        upstreams = Enum.filter(upstreams, &(&1 != from))
-        gather_loop(node, downstreams, upstreams, state)
+        if from != nil do
+          upstreams = Enum.filter(upstreams, &(&1 != from))
+          gather_loop(node, downstreams, upstreams, state)
+        else
+
+          propagate_downstream({:complete}, downstreams)
+          propagate_upstream({:delete_downstream}, upstreams)
+        end
 
       m ->
         log("GATHERER: Message not understood: #{inspect(m)}")
@@ -76,12 +81,14 @@
 
   def propagate_downstream(message, downstreams) do
     for {to_pid, from_gate, to_gate} <- downstreams do
+      IO.puts "Sending #{inspect Tuple.append(message, {self(), from_gate, to_gate})} to #{inspect to_pid}"
       send(to_pid, Tuple.append(message, {self(), from_gate, to_gate}))
     end
   end
 
   def propagate_upstream(message, upstreams) do
     for {to_pid, from_gate, to_gate} <- upstreams do
+      IO.puts "Sending #{inspect Tuple.append(message, {self(), from_gate, to_gate})} to #{inspect to_pid}"
       send(to_pid, Tuple.append(message, {self(), from_gate, to_gate}))
     end
   end
