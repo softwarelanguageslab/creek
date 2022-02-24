@@ -37,10 +37,10 @@ defmodule Creek.Runtime do
       |> Enum.map(fn v ->
         case v do
           %Operator{name: "actor_src", label: label, ref: ref} ->
-            alive?(Keyword.fetch!(actors, label))
+            node(Keyword.fetch!(actors, label)) |> :rpc.call(:erlang, :is_process_alive, [Keyword.fetch!(actors, label)])
 
           %Operator{name: "actor_snk", label: label, ref: ref} ->
-            alive?(Keyword.fetch!(actors, label))
+            node(Keyword.fetch!(actors, label)) |> :rpc.call(:erlang, :is_process_alive, [Keyword.fetch!(actors, label)])
 
           _ ->
             true
