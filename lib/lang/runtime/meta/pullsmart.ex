@@ -36,7 +36,7 @@ defmodule SmartPull do
                            propagate_upstream_meta(:demand, to_demand, p.pid)
                          end
 
-                         {p, base_response,from}
+                         {p, base_response, from}
                        end)
                        ~> effects()
 

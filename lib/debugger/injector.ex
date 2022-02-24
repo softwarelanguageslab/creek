@@ -5,9 +5,10 @@ defmodule Creek.Debugger do
     loop = fn loop ->
       receive do
         m ->
-          IO.puts "Emitting message into injector: #{inspect m}"
+          IO.puts("Emitting message into injector: #{inspect(m)}")
           Creek.Source.Subject.next(injector, m)
       end
+
       loop.(loop)
     end
 
@@ -17,13 +18,11 @@ defmodule Creek.Debugger do
     end)
 
     injector
-
   end
 
   def sink() do
     snk =
       Creek.Sink.each(fn x ->
-
         Phoenix.PubSub.broadcast(Creek.PubSub, "complete", x)
       end)
   end

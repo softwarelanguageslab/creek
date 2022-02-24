@@ -87,7 +87,6 @@
     complete?: :*,
     export_completes: :*,
     meta?: :*,
-    metas: :*,
-
+    metas: :*
   ]
 ]

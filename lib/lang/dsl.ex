@@ -1,5 +1,4 @@
 defmodule Creek.DSL do
-
   ##############################################################################
   # Macros for Meta
 
@@ -114,7 +113,6 @@ defmodule Creek.DSL do
     end
   end
 
-
   defmacro dag({name, _, [{:as, _, [exp]}]}) do
     quote do
       def unquote(name)() do
@@ -122,6 +120,7 @@ defmodule Creek.DSL do
       end
     end
   end
+
   defmacro let({name, _, [{:as, _, [exp]}]}) do
     quote do
       var!(unquote(Macro.var(name, __MODULE__))) = fn -> unquote(exp) end

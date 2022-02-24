@@ -5,7 +5,7 @@ defmodule Creek.DoubleSink do
   use Creek
 
   defdag test(src, snk) do
-    let s as map(fn x -> x end)
+    let s(as map(fn x -> x end))
     src ~> dup ~> (s.() ~> snk ||| s.() ~> snk)
   end
 
@@ -19,5 +19,4 @@ defmodule Creek.DoubleSink do
     ivar
     |> Ivar.get()
   end
-
 end

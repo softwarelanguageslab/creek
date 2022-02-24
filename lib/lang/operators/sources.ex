@@ -49,6 +49,14 @@ defmodule Creek.Source do
     end)
   end
 
+  def gatherer(description \\ "") do
+    o = %Operator{type: :source, arg: nil, name: "gatherer #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Gatherer}
+
+    spawn(fn ->
+      Creek.Source.Gatherer.gatherer(o, [], [])
+    end)
+  end
+
   def subj(description \\ "") do
     o = %Operator{type: :source, arg: nil, name: "subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Subject}
 

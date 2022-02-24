@@ -19,7 +19,10 @@ defmodule Pull do
   # As soon as no value is propagated in response, a new demand is sent.
   fragment opr_next as filter(&match?({_, :next, _, _}, &1))
                        ~> base()
-                       ~> map(fn x -> IO.inspect x ; x end)
+                       ~> map(fn x ->
+                         IO.inspect(x)
+                         x
+                       end)
                        ~> map(fn {p, base_response, _from} ->
                          if match?({_, :skip}, base_response) do
                            propagate_upstream_meta(:demand, p.us, p.pid)

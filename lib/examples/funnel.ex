@@ -25,15 +25,17 @@ defmodule Creek.Funnel do
     # the subject.
     deploy(print_funnel, src: sub.source, snk: sink)
 
-    spawn(fn -> for i <- 1..100 do
-      Process.sleep(100)
-      spawn(fn ->
-        Process.sleep(1000)
-      src = Creek.Source.single(i)
-      deploy(send_to_funnel, src: src, snk: sub.sink.())
-      end)
-    end
-  end)
+    spawn(fn ->
+      for i <- 1..100 do
+        Process.sleep(100)
+
+        spawn(fn ->
+          Process.sleep(1000)
+          src = Creek.Source.single(i)
+          deploy(send_to_funnel, src: src, snk: sub.sink.())
+        end)
+      end
+    end)
 
     receive do
       :done ->

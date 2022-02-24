@@ -16,7 +16,7 @@ defmodule Creek.DebugExample do
     source2 = Creek.Source.range(10, 11000, 1, 1000)
     ivar = Ivar.new()
     sink = Creek.Sink.all(ivar)
-    Creek.Runtime.run(test(), [src: source, src2: source2,snk: sink], dot: true)
+    Creek.Runtime.run(test(), [src: source, src2: source2, snk: sink], dot: true)
 
     ivar
     |> Ivar.get()

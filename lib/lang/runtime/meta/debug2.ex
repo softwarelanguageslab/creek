@@ -54,11 +54,12 @@ defmodule Debugging2 do
     # Update the argument if this is the right node.
     let metas as meta?.()
                  ~> map(fn {p, :meta, m, _from} ->
-                  IO.inspect "Meta message in meta stream: #{inspect m}"
+                   IO.inspect("Meta message in meta stream: #{inspect(m)}")
+
                    case {m, inspect(p.pid)} do
                      {{:update_arg, arg, pid}, pid} ->
                        {arg, _} = Code.eval_string(arg)
-                       IO.inspect arg, label: "new arg"
+                       IO.inspect(arg, label: "new arg")
                        {%{p | node: %{p.node | arg: arg}}, :ok}
 
                      _ ->

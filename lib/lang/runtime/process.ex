@@ -19,7 +19,7 @@ defmodule Creek.Runtime.Process do
   end
 
   def warn(message) do
-    if @log do
+    if false do
       IO.puts(IO.ANSI.yellow() <> "WARN #{inspect(self())}: #{message}" <> IO.ANSI.reset())
     end
   end
@@ -80,24 +80,24 @@ defmodule Creek.Runtime.Process do
 
       {:add_downstream, downstream} ->
         # {_, from_gate, _} = downstream
-        # log("SRC: Adding downstream #{inspect(downstream)} at gate #{from_gate}")
+        warn("SRC: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         source_loop(node, [downstream | downstreams], state, meta_state)
 
       {:delete_downstream, downstream} ->
-        # log("SRC: Delete downstream: #{inspect(downstream)}")
+        warn("SRC: Removing downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         new_downstreams = Enum.filter(downstreams, &(downstream != &1))
 
         if new_downstreams == [] do
           send_self({:finish})
-          # warn("SRC: No downstreams left anymore.")
+          warn("SRC: No downstreams left anymore.")
         else
-          # warn("OPR: Other downstreams left.")
+          warn("SRC: Other downstreams left.")
         end
 
         source_loop(node, new_downstreams, state, meta_state)
 
       {:finish} ->
-        # warn("SRC: Finished (#{inspect(self())})")
+        warn("SRC: Finished")
         # If a source receives a finish it simply finishes.
         # The finish message *always* comes from the process itself.
         # Itonly has one downstream and that received the complete message.
@@ -238,30 +238,30 @@ defmodule Creek.Runtime.Process do
       ###############
       {:add_downstream, downstream} ->
         {_, from_gate, _} = downstream
-        # log("OPR: Adding downstream #{inspect(downstream)} at gate #{from_gate}")
+        warn("OPR: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         process_loop(node, upstreams, [downstream | downstreams], state, meta_state)
 
       {:delete_downstream, downstream} ->
-        # log("OPR: Delete downstream: #{inspect(downstream)}")
+        warn("OPR: Removing downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         new_downstreams = Enum.filter(downstreams, &(downstream != &1))
 
         if new_downstreams == [] do
+          warn("OPR: No downstreams left anymore.")
           send_self({:finish})
           propagate_upstream({:delete_downstream}, upstreams, self())
-          # warn("OPR: No downstreams left anymore.")
         else
-          # warn("OPR: Other downstreams left.")
+          warn("OPR: Still downstreams left: #{inspect(new_downstreams)}")
         end
 
         process_loop(node, upstreams, new_downstreams, state, meta_state)
 
       {:add_upstream, upstream} ->
         {_, _, to_gate} = upstream
-        # log("OPR: Adding upstream   #{inspect(upstream)} at gate #{to_gate}")
+        warn("OPR: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
         process_loop(node, [upstream | upstreams], downstreams, state, meta_state)
 
       {:finish} ->
-        # warn("OPR: Finished (#{inspect(self())})")
+        warn("OPR: Finished (#{inspect(self())})")
         :finished
 
       #################
@@ -346,7 +346,14 @@ defmodule Creek.Runtime.Process do
 
             {state, :final, value} ->
               effects_next(value, downstreams, self())
-              effects_complete(from, downstreams, upstreams, from_pid)
+              # effects_complete(nil, downstreams, upstreams, from_pid)
+              # Tell everyone to delete us as a downstream.
+              propagate_upstream({:delete_downstream}, upstreams, self())
+              # Tell all downstreams that we completed.
+              propagate_downstream({:complete}, downstreams, self())
+
+              send_self({:finish}, self())
+
               process_loop(node, upstreams, downstreams, state, meta_state)
 
             _ ->
@@ -442,9 +449,8 @@ defmodule Creek.Runtime.Process do
           sink_loop(node, upstreams, state, meta_state)
         end
 
-      {:add_upstream, upstream} ->
-        # {_, _, to_gate} = upstream
-        # log("SNK: Adding upstream   #{inspect(upstream)} at gate #{to_gate}")
+      {:add_upstream, upstream = {from_pid, from_gate, to_gate}} ->
+        warn("SNK: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
         sink_loop(node, [upstream | upstreams], state, meta_state)
 
       {:finish} ->
@@ -640,6 +646,7 @@ defmodule Creek.Runtime.Process do
 
   def propagate_upstream(message, upstreams, frompid) do
     for {to_pid, from_gate, to_gate} <- upstreams do
+      warn("OPR SENDING UPSTREAM #{inspect(Tuple.append(message, {frompid, from_gate, to_gate}))}")
       send(to_pid, Tuple.append(message, {frompid, from_gate, to_gate}))
     end
   end

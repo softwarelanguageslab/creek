@@ -30,29 +30,33 @@ defmodule Debugging do
              as filter(&match?({_, :complete, from}, &1))
                 ~> map(fn {p, :complete, from} ->
                   if p.node.impl == Creek.Operator.Transform do
-                    IO.puts "Transform got a complete"
+                    IO.puts("Transform got a complete")
                   end
+
                   # Phoenix.PubSub.broadcast(Creek.PubSub, "complete", {:complete, p.pid})
                   {p, :complete, from}
                 end)
                 ~> base()
                 ~> map(fn r = {p, {state, instr}, from} ->
                   if p.node.impl == Creek.Operator.Transform do
-                    IO.puts "2 Transform got a complete"
-                    IO.inspect instr
+                    IO.puts("2 Transform got a complete")
+                    IO.inspect(instr)
                   end
+
                   if instr == :complete do
-                    IO.puts "Sending complete"
+                    IO.puts("Sending complete")
                     Phoenix.PubSub.broadcast(Creek.PubSub, "complete", {:complete, p.pid})
                   end
-                  IO.puts "end"
+
+                  IO.puts("end")
                   r
                 end)
                 ~> effects()
                 ~> map(fn r = {p, _} ->
                   if p.node.impl == Creek.Operator.Transform do
-                    IO.puts "Transform got a complete"
+                    IO.puts("Transform got a complete")
                   end
+
                   # Phoenix.PubSub.broadcast(Creek.PubSub, "complete", {:complete, p.pid})
                   r
                 end)
@@ -60,6 +64,7 @@ defmodule Debugging do
                   if p.us == [] do
                     Phoenix.PubSub.broadcast(Creek.PubSub, "complete", {:complete, p.pid})
                   end
+
                   r
                 end)
            )
