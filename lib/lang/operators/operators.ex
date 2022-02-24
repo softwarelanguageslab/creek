@@ -163,13 +163,14 @@ defmodule Creek.Operator do
   #############################################################################
   # Derived
 
-  def average() do
+  def average(last \\ 0) do
     transform({nil, nil}, fn v, {count, sum} ->
       if count == nil and sum == nil do
         {{1, v}, v}
       else
-        count = count + 1
-        sum = sum + v
+
+        count = if count >= last, do: count + 1, else: 0
+        sum = if count >= last, do: v, else: sum + v
         {{count, sum}, sum / count}
       end
     end)
