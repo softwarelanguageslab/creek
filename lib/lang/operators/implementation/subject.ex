@@ -3,6 +3,10 @@ defmodule Creek.Source.Subject do
     send(subj, {:next, value})
   end
 
+  def complete(subj) do
+    send(subj, {:complete})
+  end
+
   def source(node, downstreams) do
     source_loop(node, downstreams, node.arg)
   end
