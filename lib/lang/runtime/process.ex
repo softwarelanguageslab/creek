@@ -20,7 +20,7 @@ defmodule Creek.Runtime.Process do
   end
 
   def warn(message) do
-    if false do
+    if @warn do
       IO.puts(IO.ANSI.yellow() <> "WARN #{inspect(self())}: #{message}" <> IO.ANSI.reset())
     end
   end
