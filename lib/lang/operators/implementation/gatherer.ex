@@ -1,10 +1,10 @@
-defmodule Creek.Source.Gatherer do
+  defmodule Creek.Source.Gatherer do
   def next(subj, value) do
     send(subj, {:next, value})
   end
 
   def complete(subj) do
-    send(subj, {:complete})
+    send(subj, {:complete, self()})
   end
 
   def gatherer(node, downstreams, upstreams) do
