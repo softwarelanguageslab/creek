@@ -1,6 +1,7 @@
 defmodule Creek.Runtime.Process do
   require Logger
 
+  @warn true
   defstruct pid: nil, ref: nil
 
   def new(pid, ref) do
@@ -25,7 +26,7 @@ defmodule Creek.Runtime.Process do
   end
 
   def err(message) do
-    if true do
+    if @warn do
       IO.puts(IO.ANSI.red() <> "ERR  #{inspect(self())}: #{message}" <> IO.ANSI.reset())
     end
   end

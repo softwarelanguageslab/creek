@@ -1,4 +1,5 @@
   defmodule Creek.Source.Gatherer do
+    @warn true
   def next(subj, value) do
     send(subj, {:next, value})
   end
@@ -97,7 +98,7 @@
   end
 
   def warn(message) do
-    if false do
+    if @warn do
       IO.puts(IO.ANSI.yellow() <> "WARN #{inspect(self())}: #{message}" <> IO.ANSI.reset())
     end
   end
