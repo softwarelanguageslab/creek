@@ -532,7 +532,7 @@ defmodule Creek.Runtime.Process do
               sink_loop(node, upstreams, state, meta_state)
 
             {state, :complete} ->
-              effects_complete(from, [], upstreams, self())
+              effects_complete(nil, [], upstreams, self())
               sink_loop(node, upstreams, state, meta_state)
 
             _ ->
