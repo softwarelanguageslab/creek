@@ -5,7 +5,9 @@ defmodule Creek.Sink.First do
   end
 
   def complete(_this, {ivar, state}) do
-    Ivar.put(ivar, nil)
+    if ivar != nil do
+      Ivar.put(ivar, nil)
+    end
     {{ivar, state}, :complete}
   end
 end
