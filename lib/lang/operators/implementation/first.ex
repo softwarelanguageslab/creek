@@ -1,6 +1,8 @@
 defmodule Creek.Sink.First do
   def next(_this, {ivar, state}, _from, value) do
-    Ivar.put(ivar, value)
+    if ivar != nil do
+      Ivar.put(ivar, value)
+    end
     {{ivar, state}, :complete}
   end
 
