@@ -128,6 +128,7 @@ defmodule Creek.DSL do
   end
 
   defmacro deploy_module(m_atom, f_atom, args, opts \\ []) do
+    IO.puts "Deploying module DAG"
     quote do
       dict =
         unquote(args)
