@@ -26,9 +26,9 @@ defmodule Creek.Source.Gatherer do
         Process.monitor(from_pid)
         gather_loop(node, downstreams, [upstream | upstreams], state)
 
-        {:add_downstream, downstream} ->
-          {pid, from_gate, _} = downstream
-          Process.monitor(pid)
+      {:add_downstream, downstream} ->
+        {pid, from_gate, _} = downstream
+        Process.monitor(pid)
         warn("GATHERER: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         gather_loop(node, [downstream | downstreams], upstreams, state)
 
@@ -53,6 +53,21 @@ defmodule Creek.Source.Gatherer do
         # Itonly has one downstream and that received the complete message.
         :finished
 
+      {:DOWN, _ref, x, down_pid, y} ->
+        warn("GATHERER: Node down: #{inspect(down_pid)}")
+
+        for down_ds <- Enum.filter(downstreams, fn {pid, _, _} -> down_pid == pid end) do
+          # IO.puts("Sending delete_downstream to self #{inspect(down_ds)}")
+          send(self(), {:delete_downstream, down_ds})
+        end
+
+        for down_us <- Enum.filter(upstreams, fn {pid, _, _} -> down_pid == pid end) do
+          # IO.puts("Sending complete to self #{inspect(down_us)}")
+          send(self(), {:complete, down_us})
+        end
+
+        gather_loop(node, downstreams, upstreams, state)
+
       #################
       # Base Protocol #
       #################
@@ -60,13 +75,15 @@ defmodule Creek.Source.Gatherer do
         gather_loop(node, downstreams, upstreams, state)
 
       {:next, value, from} ->
-        # log("GATHERER: Nexting #{inspect(value)}")
+        warn("GATHERER: Next #{inspect(value)}")
         propagate_downstream({:next, value}, downstreams)
         gather_loop(node, downstreams, upstreams, state)
 
       {:complete, from} ->
+        warn("GATHERER: Complete #{inspect(from)}")
         # A gatherer does not complete hen all its upstreams are finished.
-        # It only finishes if al lits downstreams are finished.
+        # It only finishes if all its downstreams are finished.
+        # When that is the case we send a complete to ourselves with nil as from.
         if from != nil do
           upstreams = Enum.filter(upstreams, &(&1 != from))
           gather_loop(node, downstreams, upstreams, state)
@@ -82,14 +99,14 @@ defmodule Creek.Source.Gatherer do
 
   def propagate_downstream(message, downstreams) do
     for {to_pid, from_gate, to_gate} <- downstreams do
-      IO.puts("Sending #{inspect(Tuple.append(message, {self(), from_gate, to_gate}))} to #{inspect(to_pid)}")
+      # IO.puts("Sending #{inspect(Tuple.append(message, {self(), from_gate, to_gate}))} to #{inspect(to_pid)}")
       send(to_pid, Tuple.append(message, {self(), from_gate, to_gate}))
     end
   end
 
   def propagate_upstream(message, upstreams) do
     for {to_pid, from_gate, to_gate} <- upstreams do
-      IO.puts("Sending #{inspect(Tuple.append(message, {self(), from_gate, to_gate}))} to #{inspect(to_pid)}")
+      # IO.puts("Sending #{inspect(Tuple.append(message, {self(), from_gate, to_gate}))} to #{inspect(to_pid)}")
       send(to_pid, Tuple.append(message, {self(), from_gate, to_gate}))
     end
   end

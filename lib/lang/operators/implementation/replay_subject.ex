@@ -31,7 +31,7 @@ defmodule Creek.Source.ReplaySubject do
 
         if new_downstreams == [] do
           send_self({:finish})
-          warn("SBJ: No downstreams left anymore.")
+          warn("SUBJ: No downstreams left anymore.")
         else
           warn("OPR: Other downstreams left.")
         end

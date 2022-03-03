@@ -60,6 +60,7 @@ defmodule Creek.Runtime.Process do
   ##############################################################################
 
   def source(node, downstreams) do
+    Process.flag :trap_exit, true
     source_loop(node, downstreams, node.arg, nil)
   end
 
@@ -80,9 +81,9 @@ defmodule Creek.Runtime.Process do
         end
 
       {:add_downstream, downstream} ->
+        warn("SRC: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         {pid, _from_gate, _} = downstream
         Process.monitor(pid)
-        warn("SRC: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         source_loop(node, [downstream | downstreams], state, meta_state)
 
       {:delete_downstream, downstream} ->
@@ -139,7 +140,7 @@ defmodule Creek.Runtime.Process do
         end
 
       {:initialize} ->
-        # log("SRC: Initializing")
+        warn("SRC: Initializing")
         # Initial state.
 
         if node.meta != nil do
@@ -166,8 +167,8 @@ defmodule Creek.Runtime.Process do
               effects_initialize_source(self())
               source_loop(node, downstreams, state, meta_state)
 
-              # _ ->
-              # warn("SRC: initialize invalid return value!")
+              _ ->
+              warn("SRC: initialize invalid return value!")
           end
         end
 
@@ -197,20 +198,20 @@ defmodule Creek.Runtime.Process do
               source_loop(node, downstreams, state, meta_state)
 
             {state, :complete} ->
-              # log("SRC: Completed")
+              warn("SRC: Completed")
               propagate_downstream({:complete}, downstreams, self())
               send_self({:finish})
               source_loop(node, downstreams, state, meta_state)
 
             _ ->
               nil
-              # warn("SRC: tick invalid return value!")
+              warn("SRC: tick invalid return value!")
           end
         end
 
       m ->
         nil
-        # warn("SRC: Message not understood: #{inspect(m)}")
+        warn("SRC: Message not understood: #{inspect(m)}")
     end
   end
 
@@ -219,6 +220,8 @@ defmodule Creek.Runtime.Process do
   ##############################################################################
 
   def process(node, upstreams, downstreams) do
+    Process.flag :trap_exit, true
+
     # warn("OPR: Starting @ #{inspect(self())}")
 
     if node.meta != nil do
@@ -448,6 +451,8 @@ defmodule Creek.Runtime.Process do
   ##############################################################################
 
   def sink(node, upstreams) do
+    Process.flag :trap_exit, true
+
     if node.meta != nil do
       # We spawn the META graph of this process.
       source = Creek.Source.subject("meta subject")
@@ -613,13 +618,13 @@ defmodule Creek.Runtime.Process do
 
             _ ->
               nil
-              # warn("SNK: complete invalid return value!")
+              warn("SNK: complete invalid return value!")
           end
         end
 
       m ->
         nil
-        # warn("SNK: Message not understood: #{inspect(m)}")
+        warn("SNK: Message not understood: #{inspect(m)}")
     end
   end
 

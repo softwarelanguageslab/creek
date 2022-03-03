@@ -132,6 +132,7 @@ defmodule Creek.Runtime do
         GatedDag.edges_from(spawned_dag, vertex)
         |> Enum.map(fn {from, idxf, to, idxt} ->
           send(from.pid, {:add_downstream, {to.pid, idxf, idxt}})
+
         end)
 
         GatedDag.edges_to(spawned_dag, vertex)
