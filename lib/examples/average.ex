@@ -9,7 +9,7 @@ defmodule Creek.Average do
 
   @spec main :: any
   def main() do
-    source = Creek.Source.range(1, 10)
+    source = Creek.Source.list([1.0, 1.1, 1.2])
     ivar = Ivar.new()
     sink = Creek.Sink.all(ivar)
     Creek.Runtime.run(test(), [src: source, snk: sink], dot: true)

@@ -283,12 +283,12 @@ defmodule Creek.Runtime.Process do
         warn("OPR: Node down: #{inspect down_pid}")
 
         for down_ds <-  Enum.filter(downstreams, fn {pid, _, _} -> down_pid == pid end) do
-          IO.puts "Sending delete_downstream to #{inspect down_ds}"
+          # IO.puts "Sending delete_downstream to #{inspect down_ds}"
           send(self(), {:delete_downstream, down_ds})
         end
 
         for down_us <- Enum.filter(upstreams, fn {pid, _, _} -> down_pid == pid end) do
-          IO.puts "Sending complete to #{inspect down_us}"
+          # IO.puts "Sending complete to #{inspect down_us}"
           send(self(), {:complete, down_us})
         end
 
