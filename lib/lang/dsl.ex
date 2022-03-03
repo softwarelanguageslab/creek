@@ -381,7 +381,6 @@ defmodule Creek.DSL do
           # Inject the meta bethaviour.
           result =
             if alias!(RuntimeMeta) != nil do
-              IO.puts "Meta behaviour for DAG #{inspect unquote(name)}"
               GatedDag.map_vertices(result, fn vertex ->
                 case vertex.type do
                   :operator ->

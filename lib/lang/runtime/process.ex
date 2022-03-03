@@ -82,13 +82,13 @@ defmodule Creek.Runtime.Process do
         end
 
       {:add_downstream, downstream} ->
-        warn("SRC: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
+        # warn("SRC: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         {pid, _from_gate, _} = downstream
         Process.monitor(pid)
         source_loop(node, [downstream | downstreams], state, meta_state)
 
       {:delete_downstream, downstream} ->
-        warn("SRC: Removing downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
+        # warn("SRC: Removing downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         new_downstreams = Enum.filter(downstreams, &(downstream != &1))
 
         if new_downstreams == [] do
@@ -141,7 +141,7 @@ defmodule Creek.Runtime.Process do
         end
 
       {:initialize} ->
-        warn("SRC: Initializing")
+        # warn("SRC: Initializing")
         # Initial state.
 
         if node.meta != nil do
@@ -232,7 +232,6 @@ defmodule Creek.Runtime.Process do
       sink = Creek.Sink.tap(self())
       inject_tap = Creek.Sink.tap(self())
       Creek.Runtime.run(node.meta, [src: source, snk: sink] ++ node.meta_sink, meta: true)
-      IO.inspect("Injector subject: #{inspect(node.meta_in)}")
 
       if node.meta_in != [] do
         Creek.Runtime.run(Proxy.proxy(), [src: node.meta_in] ++ [snk: inject_tap], meta: true)
@@ -253,11 +252,11 @@ defmodule Creek.Runtime.Process do
       {:add_downstream, downstream} ->
         {pid, from_gate, _} = downstream
         Process.monitor(pid)
-        warn("OPR: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
+        # warn("OPR: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         process_loop(node, upstreams, [downstream | downstreams], state, meta_state)
 
       {:delete_downstream, downstream} ->
-        warn("OPR: Removing downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
+        # warn("OPR: Removing downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         new_downstreams = Enum.filter(downstreams, &(downstream != &1))
 
         if new_downstreams == [] do
@@ -273,7 +272,7 @@ defmodule Creek.Runtime.Process do
       {:add_upstream, upstream} ->
         {pid, _, to_gate} = upstream
         Process.monitor(pid)
-        warn("OPR: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
+        # warn("OPR: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
         process_loop(node, [upstream | upstreams], downstreams, state, meta_state)
 
       {:finish} ->
@@ -484,7 +483,7 @@ defmodule Creek.Runtime.Process do
 
       {:add_upstream, upstream = {from_pid, from_gate, to_gate}} ->
         Process.monitor(from_pid)
-        warn("SNK: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
+        # warn("SNK: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
         sink_loop(node, [upstream | upstreams], state, meta_state)
 
       {:finish} ->
