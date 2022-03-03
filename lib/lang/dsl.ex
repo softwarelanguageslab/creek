@@ -249,6 +249,7 @@ defmodule Creek.DSL do
 
           # Inject the meta bethaviour.
           result =
+            IO.inspect alias!(RuntimeMeta), label: "runtime meta alias"
             if alias!(RuntimeMeta) != nil do
               GatedDag.map_vertices(result, fn vertex ->
                 case vertex.type do
