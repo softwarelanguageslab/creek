@@ -170,8 +170,6 @@ defmodule Creek.Operator do
       else
         count = if count >= last, do: count + 1, else: 1
         sum = if count >= last, do: v, else: sum + v
-        IO.inspect sum, label: "sum"
-        IO.inspect count, label: "count"
 
         {{count, sum}, sum / count}
       end

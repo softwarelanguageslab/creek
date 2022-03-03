@@ -492,7 +492,6 @@ defmodule Creek.Runtime.Process do
 
       {:DOWN, _ref, _, pid, _} ->
         warn("SNK: Node down")
-        IO.inspect(upstreams)
         sink_loop(node, upstreams, state, meta_state)
 
       #################
