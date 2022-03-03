@@ -127,8 +127,20 @@ defmodule Creek.DSL do
     end
   end
 
+  defmacro deploy_module(m_atom, f_atom, args, opts \\ []) do
+    quote do
+      dict =
+        unquote(args)
+        |> Enum.reduce(%{}, fn {label, value}, dict ->
+          Map.put(dict, label, value)
+        end)
+
+      dag = apply(unquote(m_atom), unquote(f_atom), [dict])
+      Creek.Runtime.run(dag, unquote(args), unquote(opts))
+    end
+  end
+
   defmacro deploy(dagfunc, args, opts \\ []) do
-    IO.inspect dagfunc, label: "DAG function in macro"
     {f_atom, _, _} = dagfunc
 
     quote do
@@ -143,9 +155,6 @@ defmodule Creek.DSL do
     end
   end
 
-  # defmacro deploy(dagfunc, args) do
-  #   deploy(dagfunc, args, [])
-  # end
 
   defmacro dag({name, _, args}, do: exp) do
     # Each parameter is reassigned to a dummy Creek.Operator.

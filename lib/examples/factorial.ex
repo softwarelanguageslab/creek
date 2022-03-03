@@ -9,7 +9,6 @@ defmodule Creek.Factorial do
     ~> snk
   end
 
-  @spec main :: any
   def main() do
     source = Creek.Source.range(1, 3, 1, 1000)
     ivar = Ivar.new()
