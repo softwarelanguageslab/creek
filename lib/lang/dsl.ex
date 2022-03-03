@@ -128,6 +128,7 @@ defmodule Creek.DSL do
   end
 
   defmacro deploy(dagfunc, args, opts \\ []) do
+    IO.inspect dagfunc, label: "DAG function in macro"
     {f_atom, _, _} = dagfunc
 
     quote do
