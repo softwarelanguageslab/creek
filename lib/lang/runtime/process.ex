@@ -70,6 +70,7 @@ defmodule Creek.Runtime.Process do
       # Bookkeeping #
       ###############
       {:offer_meta, meta_dag, args} ->
+        warn("SRC: Deploying meta DAG")
         if meta_dag != nil do
           source = Creek.Source.subject("meta subject")
           sink = Creek.Sink.tap(self())
