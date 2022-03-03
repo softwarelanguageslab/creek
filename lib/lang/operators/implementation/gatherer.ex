@@ -1,5 +1,5 @@
-  defmodule Creek.Source.Gatherer do
-    @warn true
+defmodule Creek.Source.Gatherer do
+  @warn true
   def next(subj, value) do
     send(subj, {:next, value})
   end
@@ -21,12 +21,14 @@
         gather_loop(node, downstreams, upstreams, state)
 
       {:add_upstream, upstream} ->
-        {_, from_gate, _} = upstream
+        {from_pid, from_gate, _} = upstream
         warn("GATHERER: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
+        Process.monitor(from_pid)
         gather_loop(node, downstreams, [upstream | upstreams], state)
 
-      {:add_downstream, downstream} ->
-        {_, from_gate, _} = downstream
+        {:add_downstream, downstream} ->
+          {pid, from_gate, _} = downstream
+          Process.monitor(pid)
         warn("GATHERER: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         gather_loop(node, [downstream | downstreams], upstreams, state)
 
@@ -69,7 +71,6 @@
           upstreams = Enum.filter(upstreams, &(&1 != from))
           gather_loop(node, downstreams, upstreams, state)
         else
-
           propagate_downstream({:complete}, downstreams)
           propagate_upstream({:delete_downstream}, upstreams)
         end
@@ -81,14 +82,14 @@
 
   def propagate_downstream(message, downstreams) do
     for {to_pid, from_gate, to_gate} <- downstreams do
-      IO.puts "Sending #{inspect Tuple.append(message, {self(), from_gate, to_gate})} to #{inspect to_pid}"
+      IO.puts("Sending #{inspect(Tuple.append(message, {self(), from_gate, to_gate}))} to #{inspect(to_pid)}")
       send(to_pid, Tuple.append(message, {self(), from_gate, to_gate}))
     end
   end
 
   def propagate_upstream(message, upstreams) do
     for {to_pid, from_gate, to_gate} <- upstreams do
-      IO.puts "Sending #{inspect Tuple.append(message, {self(), from_gate, to_gate})} to #{inspect to_pid}"
+      IO.puts("Sending #{inspect(Tuple.append(message, {self(), from_gate, to_gate}))} to #{inspect(to_pid)}")
       send(to_pid, Tuple.append(message, {self(), from_gate, to_gate}))
     end
   end

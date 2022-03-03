@@ -16,8 +16,9 @@ defmodule Creek.Source.Sub do
       {:offer_meta, _, _} ->
         source_loop(node, downstreams, state)
 
-      {:add_downstream, downstream} ->
-        {_, from_gate, _} = downstream
+        {:add_downstream, downstream} ->
+          {pid, from_gate, _} = downstream
+          Process.monitor(pid)
         log("SBJ: Adding downstream #{inspect(downstream)} at gate #{from_gate}")
         source_loop(node, [downstream | downstreams], state)
 

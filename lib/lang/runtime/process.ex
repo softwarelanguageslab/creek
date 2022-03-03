@@ -80,7 +80,8 @@ defmodule Creek.Runtime.Process do
         end
 
       {:add_downstream, downstream} ->
-        # {_, from_gate, _} = downstream
+        {pid, _from_gate, _} = downstream
+        Process.monitor(pid)
         warn("SRC: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         source_loop(node, [downstream | downstreams], state, meta_state)
 
@@ -103,6 +104,14 @@ defmodule Creek.Runtime.Process do
         # The finish message *always* comes from the process itself.
         # Itonly has one downstream and that received the complete message.
         :finished
+
+      {:DOWN, _ref, _, down_pid, _} ->
+        warn("SRC: Node down")
+        for down_ds <-  Enum.filter(downstreams, fn {pid, _, _} -> down_pid == pid end) do
+          send(self(), {:delete_downstream, down_ds})
+        end
+
+        source_loop(node, downstreams, state, meta_state)
 
       #################
       # Base Protocol #
@@ -238,7 +247,8 @@ defmodule Creek.Runtime.Process do
       # Bookkeeping #
       ###############
       {:add_downstream, downstream} ->
-        {_, from_gate, _} = downstream
+        {pid, from_gate, _} = downstream
+        Process.monitor(pid)
         warn("OPR: Adding downstream #{inspect(downstream)} (current: #{inspect(downstreams)}")
         process_loop(node, upstreams, [downstream | downstreams], state, meta_state)
 
@@ -257,13 +267,29 @@ defmodule Creek.Runtime.Process do
         process_loop(node, upstreams, new_downstreams, state, meta_state)
 
       {:add_upstream, upstream} ->
-        {_, _, to_gate} = upstream
+        {pid, _, to_gate} = upstream
+        Process.monitor(pid)
         warn("OPR: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
         process_loop(node, [upstream | upstreams], downstreams, state, meta_state)
 
       {:finish} ->
         warn("OPR: Finished (#{inspect(self())})")
         :finished
+
+      {:DOWN, _ref, _, down_pid, _} ->
+        warn("OPR: Node down: #{inspect down_pid}")
+
+        for down_ds <-  Enum.filter(downstreams, fn {pid, _, _} -> down_pid == pid end) do
+          IO.puts "Sending delete_downstream to #{inspect down_ds}"
+          send(self(), {:delete_downstream, down_ds})
+        end
+
+        for down_us <- Enum.filter(upstreams, fn {pid, _, _} -> down_pid == pid end) do
+          IO.puts "Sending complete to #{inspect down_us}"
+          send(self(), {:complete, down_us})
+        end
+
+        process_loop(node, upstreams, downstreams, state, meta_state)
 
       #################
       # Base Protocol #
@@ -364,7 +390,7 @@ defmodule Creek.Runtime.Process do
         end
 
       {:complete, from = {from_pid, from_gate, to_gate}} ->
-        # log("OPR: Received complete from, #{inspect(from_pid)} @ gate #{inspect(to_gate)}")
+        warn("OPR: Received complete from, #{inspect(from_pid)} @ gate #{inspect(to_gate)}")
 
         # if Enum.count(upstreams) < 2 do
         if node.meta != nil do
@@ -451,12 +477,18 @@ defmodule Creek.Runtime.Process do
         end
 
       {:add_upstream, upstream = {from_pid, from_gate, to_gate}} ->
+        Process.monitor(from_pid)
         warn("SNK: Adding upstream #{inspect(upstream)} (current: #{inspect(upstreams)}")
         sink_loop(node, [upstream | upstreams], state, meta_state)
 
       {:finish} ->
         warn("SNK: Finished (#{inspect(self())})")
         :finished
+
+      {:DOWN, _ref, _, pid, _} ->
+        warn("SNK: Node down")
+        IO.inspect(upstreams)
+        sink_loop(node, upstreams, state, meta_state)
 
       #################
       # Base Protocol #
