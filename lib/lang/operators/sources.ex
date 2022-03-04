@@ -25,7 +25,7 @@ defmodule Creek.Source do
     end)
   end
 
-  def subject(opts) do
+  def subject(opts \\ []) do
     o = %Operator{type: :source, arg: nil, name: "subject #{Keyword.get(opts, :description, "")}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Subject}
 
     pid =
