@@ -8,7 +8,7 @@ defmodule Creek.CompileMeta do
 
   def stream_events_to_dag(eventlist, [meta_module | meta_modules]) do
     # Build the stream through which the values need to be pushed.
-    source = Creek.Source.subject("compiletime subject")
+    source = Creek.Source.subject(description: "compiletime subject")
     sink = Creek.Sink.tap(self())
     Creek.Runtime.run(meta_module.metadag, src: source, snk: sink)
 
@@ -32,7 +32,7 @@ defmodule Creek.CompileMeta do
 
   def stream_events_to_dag(eventlist, meta_module) do
     # Build the stream through which the values need to be pushed.
-    source = Creek.Source.subject("Compiletime subject")
+    source = Creek.Source.subject(description: "Compiletime subject")
     sink = Creek.Sink.tap(self())
     Creek.Runtime.run(meta_module.metadag, src: source, snk: sink)
 

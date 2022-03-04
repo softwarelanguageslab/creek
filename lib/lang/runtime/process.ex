@@ -72,7 +72,7 @@ defmodule Creek.Runtime.Process do
       {:offer_meta, meta_dag, args} ->
         warn("SRC: Deploying meta DAG")
         if meta_dag != nil do
-          source = Creek.Source.subject("meta subject")
+          source = Creek.Source.subject(description: "meta subject")
           sink = Creek.Sink.tap(self())
           Creek.Runtime.run(meta_dag, [src: source, snk: sink] ++ args, meta: true)
           node = %{node | meta: source}
@@ -228,7 +228,7 @@ defmodule Creek.Runtime.Process do
     if node.meta != nil do
       # log_meta("Starting operator with meta-runtime #{inspect(self())}")
       # We spawn the META graph of this process.
-      source = Creek.Source.subject("meta subject")
+      source = Creek.Source.subject(description: "meta subject")
       sink = Creek.Sink.tap(self())
       inject_tap = Creek.Sink.tap(self())
       Creek.Runtime.run(node.meta, [src: source, snk: sink] ++ node.meta_sink, meta: true)
@@ -455,7 +455,7 @@ defmodule Creek.Runtime.Process do
 
     if node.meta != nil do
       # We spawn the META graph of this process.
-      source = Creek.Source.subject("meta subject")
+      source = Creek.Source.subject(description: "meta subject")
       sink = Creek.Sink.tap(self())
       Creek.Runtime.run(node.meta, [src: source, snk: sink], meta: true)
       sink_loop(%{node | meta: source}, upstreams, node.arg, nil)
@@ -472,7 +472,7 @@ defmodule Creek.Runtime.Process do
 
       {:offer_meta, meta_dag, args} ->
         if meta_dag != nil do
-          source = Creek.Source.subject("meta subject")
+          source = Creek.Source.subject(description: "meta subject")
           sink = Creek.Sink.tap(self())
           Creek.Runtime.run(meta_dag, [src: source, snk: sink] ++ args)
           node = %{node | meta: source}

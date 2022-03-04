@@ -25,12 +25,19 @@ defmodule Creek.Source do
     end)
   end
 
-  def subject(description \\ "") do
-    o = %Operator{type: :source, arg: nil, name: "subject #{description}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Subject}
+  def subject(opts) do
+    o = %Operator{type: :source, arg: nil, name: "subject #{Keyword.get(opts, :description, "")}", ref: Creek.Server.gen_sym(), in: 0, out: 1, impl: Creek.Source.Subject}
 
-    spawn(fn ->
-      Creek.Source.Subject.source(o, [])
-    end)
+    pid =
+      spawn(fn ->
+        Creek.Source.Subject.source(o, [])
+      end)
+
+    if Keyword.has_key?(opts, :name) do
+      Process.register(pid, Keyword.get(opts, :name))
+    end
+
+    pid
   end
 
   def startwith_subject(description \\ "") do
