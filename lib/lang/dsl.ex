@@ -405,7 +405,6 @@ defmodule Creek.DSL do
                 end
               end)
             else
-              IO.puts "No meta behaviour for DAG #{inspect unquote(name)}"
               result
             end
 
